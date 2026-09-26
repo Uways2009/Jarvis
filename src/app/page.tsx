@@ -78,7 +78,7 @@ export default async function ConsolePage() {
             Operations console
           </div>
           <h1 className="mt-1.5 text-[26px] font-semibold tracking-[-0.02em] text-mist-100">
-            {profile.meta.seeded ? "Round out the brain, then dial" : `${profile.company.name}`}
+            {profile.meta.placeholder ? "Populate the brain, then dial" : `${profile.company.name}`}
           </h1>
           <p className="mt-1.5 max-w-2xl text-[13.5px] leading-6 text-mist-500">
             {profile.company.oneLiner}
@@ -93,11 +93,11 @@ export default async function ConsolePage() {
         </div>
       </header>
 
-      {profile.meta.seeded ? (
-        <Notice tone="amber" title="Seeded example profile">
-          The console is running on a worked example so every surface is functional out of the box. It is
-          not your business — replace it before a single live call.{" "}
-          <Link href="/profile" className="font-medium text-amber underline decoration-amber/40 underline-offset-2">
+      {profile.meta.placeholder ? (
+        <Notice tone="danger" title="No business profile yet">
+          The console ships with an empty skeleton and no invented facts. Composition and dispatch stay
+          blocked until you describe your business — services, positioning, and how you price.{" "}
+          <Link href="/profile" className="font-medium text-danger underline decoration-danger/40 underline-offset-2">
             Open the Business Brain →
           </Link>
         </Notice>

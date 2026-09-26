@@ -13,7 +13,7 @@ interface Health {
     liveCallsArmed: boolean;
     webhookBaseUrl: string;
   };
-  profile: { label: string; seeded: boolean; version: number; completeness: { score: number } };
+  profile: { label: string; placeholder: boolean; version: number; completeness: { score: number } };
   counters: { calls: number; liveCalls: number; liveCalls24h: number; dailyCap: number; clips: number };
 }
 
@@ -138,7 +138,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Pill tone={caps?.llm.ok ? "info" : "neutral"}>
                 {caps?.llm.ok ? `Polish: ${caps.llm.provider}` : "Engine only"}
               </Pill>
-              {health?.profile.seeded ? <Pill tone="amber">Seeded profile</Pill> : null}
+              {health?.profile.placeholder ? <Pill tone="danger">Profile empty</Pill> : null}
             </div>
 
             <div className="flex items-center gap-2">

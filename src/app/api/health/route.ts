@@ -51,7 +51,7 @@ export async function GET(): Promise<Response> {
     credentials: credentialDiagnostics(env),
     profile: {
       label: profile.meta.label,
-      seeded: profile.meta.seeded,
+      placeholder: profile.meta.placeholder,
       version: profile.meta.version,
       completeness: profileCompleteness(profile),
     },

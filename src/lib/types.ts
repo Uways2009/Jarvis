@@ -20,6 +20,12 @@ export interface Service {
   outcomes: string[];
   /** Signals that a prospect is in-market for this service. */
   qualifiers: string[];
+  /**
+   * Questions worth asking when this service is the subject of a call. Optional:
+   * when absent, the composer falls back to a business-neutral discovery set.
+   * This is how the console avoids asking an interior designer about headcount.
+   */
+  discoveryQuestions?: string[];
   priceAnchor?: string;
 }
 
@@ -49,8 +55,8 @@ export interface BusinessProfile {
   meta: {
     version: number;
     updatedAt: string;
-    /** True while the profile is still the shipped example. */
-    seeded: boolean;
+    /** True while the profile is still the empty skeleton — nothing real in it. */
+    placeholder: boolean;
     label: string;
   };
   company: {
@@ -111,6 +117,17 @@ export interface BusinessProfile {
     suppressedNumbers: string[];
     consentPolicy: string;
   };
+}
+
+/**
+ * Fields that must exist before the composer can produce a defensible call.
+ * An empty profile cannot generate a specific script, and guessing on the
+ * operator's behalf is how a brand gets damaged on a recorded line.
+ */
+export interface ComposeReadiness {
+  ok: boolean;
+  missing: string[];
+  detail: string;
 }
 
 /* ── Outreach ───────────────────────────────────────────────────────────── */

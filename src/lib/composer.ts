@@ -14,6 +14,7 @@ import {
   truncate,
   words,
 } from "./text";
+import { spokenIntroduction } from "./profile";
 import { newId, nowIso } from "./store";
 
 /**
@@ -47,91 +48,79 @@ function firstName(fullName: string): string {
   return first.replace(/[^\p{L}'-]/gu, "") || "there";
 }
 
-/* ── Discovery templates ─────────────────────────────────────────────────── */
+/* ── Discovery ───────────────────────────────────────────────────────────── */
 
 interface DiscoveryTemplate {
-  /** Tokens that trigger this question. */
-  triggers: string[];
   question: string;
   why: string;
 }
 
-const DISCOVERY: DiscoveryTemplate[] = [
+/**
+ * Business-neutral discovery.
+ *
+ * Deliberately industry-agnostic: an operator's own questions (set per service
+ * on the Business Brain) always win, and this set only fills the gap. Hard-coded
+ * domain questions would actively mislead any business they were not written
+ * for — asking an interior designer about sales headcount is worse than asking
+ * nothing.
+ */
+const NEUTRAL_DISCOVERY: DiscoveryTemplate[] = [
   {
-    triggers: ["follow", "lead", "response", "respond", "speed", "pick"],
-    question: "Walk me through what happens today when a lead lands — who picks it up, and how fast?",
-    why: "Response-time gaps are the most common source of silent pipeline loss.",
+    question: "How are you handling that at the moment?",
+    why: "Reveals the current workaround, which is where the real cost usually hides.",
   },
   {
-    triggers: ["manual", "spreadsheet", "copy", "hours", "admin", "triage"],
-    question: "How much of the week is going into work that should be automated?",
-    why: "Quantifies hours before you price anything.",
+    question: "What have you already tried?",
+    why: "Stops you pitching something they have already rejected.",
   },
   {
-    triggers: ["visib", "funnel", "attribution", "report", "dashboard", "forecast", "data"],
-    question: "If I asked you right now for cost per booked meeting, how long would that take to produce?",
-    why: "Exposes whether reporting is instrumented or reconstructed.",
+    question: "Who owns this internally, and who else would need to be involved?",
+    why: "Identifies the real buyer and the political terrain.",
   },
   {
-    triggers: ["reply", "outbound", "sequence", "cold", "prospect"],
-    question: "What is your reply rate looking like on outbound at the moment?",
-    why: "Benchmarks the top of funnel against known outcomes.",
+    question: "What would need to change for this to become a priority this quarter?",
+    why: "Tests urgency without you having to manufacture it.",
   },
   {
-    triggers: ["onboard", "ramp", "training", "new hire", "rep"],
-    question: "How long does it take a new rep to run the process without help?",
-    why: "Ramp time is a hidden cost of undocumented process.",
-  },
-  {
-    triggers: ["retention", "churn", "renew", "expansion", "customer"],
-    question: "Where are customers getting stuck after the sale?",
-    why: "Post-sale leakage is frequently the larger number.",
-  },
-  {
-    triggers: ["hire", "headcount", "team", "scale", "grow"],
-    question: "Is the plan to hire through this, or to fix the process first?",
-    why: "Tests appetite for tooling and process versus pure headcount.",
-  },
-  {
-    triggers: ["crm", "tool", "stack", "hubspot", "salesforce", "consolidat"],
-    question: "What is actually in the stack at the moment, and what is earning its keep?",
-    why: "Reveals consolidation opportunity and integration surface.",
+    question: "What happens if nothing changes?",
+    why: "Surfaces the cost of inaction in their words, not yours.",
   },
 ];
 
-function discoveryQuestions(lead: Lead, profile: BusinessProfile): ScriptSection {
+function discoveryQuestions(
+  lead: Lead,
+  profile: BusinessProfile,
+  service: { discoveryQuestions?: string[] },
+): ScriptSection {
   const corpus = stemSet([lead.need, lead.notes ?? "", lead.trigger ?? "", lead.industry].join(" "));
-  const scored = DISCOVERY.map((template) => ({
+
+  // The operator's own questions for this service take precedence, in their order.
+  const authored = (service.discoveryQuestions ?? []).filter((q) => q.trim() !== "");
+  if (authored.length) {
+    return {
+      kind: "discovery",
+      label: "Discovery — your questions for this service",
+      lines: authored.slice(0, 5),
+      cues: ["These are the questions you set for this service. Ask them, then stop talking."],
+    };
+  }
+
+  const opener: DiscoveryTemplate = {
+    question: lead.need
+      ? `You mentioned ${truncate(firstSentence(lead.need), 110)} — how long has that been the case?`
+      : "How long has this been a problem?",
+    why: "Duration separates a passing niggle from a standing priority.",
+  };
+
+  // Rank the neutral set by relevance to what the prospect actually said.
+  const ranked = NEUTRAL_DISCOVERY.map((template, index) => ({
     template,
-    score: template.triggers.reduce(
-      (acc, trigger) => acc + (corpus.has(trigger) ? 1 : 0),
-      0,
-    ),
-  }))
-    .sort((a, b) => b.score - a.score)
-    .filter((entry) => entry.score > 0)
-    .slice(0, 3)
-    .map((entry) => entry.template);
+    index,
+    score: overlapScore(corpus, template.question),
+  })).sort((a, b) => b.score - a.score || a.index - b.index);
 
-  const generic: DiscoveryTemplate[] = [
-    {
-      triggers: [],
-      question: "What happens if nothing changes this quarter?",
-      why: "Surfaces the cost of inaction without you having to argue for urgency.",
-    },
-    {
-      triggers: [],
-      question: "Who owns this internally right now?",
-      why: "Identifies the real buyer and the political terrain.",
-    },
-    {
-      triggers: [],
-      question: "What have you already tried?",
-      why: "Avoids pitching something they have already rejected.",
-    },
-  ];
+  const chosen = [opener, ...ranked.map((r) => r.template)].slice(0, 4);
 
-  const chosen = [...scored, ...generic].slice(0, 4);
   return {
     kind: "discovery",
     label: "Discovery — earn the right to pitch",
@@ -188,8 +177,9 @@ export function composeScript(
 ): ComposedScript {
   const seed = seedFrom(`${lead.name}|${lead.company}|${objective}|${lead.need}`);
   const first = firstName(lead.name);
-  const sender = profile.sender.name || profile.company.name;
-  const company = profile.company.name;
+  // "this is X from X" is the fastest way to sound like a robocall.
+  const intro = spokenIntroduction(profile);
+  const company = profile.company.name || "our team";
 
   // Match the service to the stated need, with a transparent rationale.
   const query = stemSet(
@@ -216,9 +206,19 @@ export function composeScript(
         }
       : undefined;
 
-  const service = matchedService
-    ? profile.services.find((s) => s.id === matchedService.id)!
-    : profile.services[0]!;
+  const service =
+    (matchedService ? profile.services.find((s) => s.id === matchedService.id) : undefined) ??
+    profile.services[0] ??
+    // No services configured. Compose against a neutral stand-in so the call
+    // still renders and the gap is visible, rather than throwing. The dispatch
+    // route refuses this case outright with a precise instruction.
+    {
+      id: "svc_unspecified",
+      name: "Primary offer",
+      summary: profile.company.oneLiner || "the work described in your business profile",
+      outcomes: [] as string[],
+      qualifiers: [] as string[],
+    };
 
   const proof =
     profile.positioning.proofPoints.find((p) => {
@@ -255,16 +255,16 @@ export function composeScript(
   // lines never echo each other's phrasing.
   const openerPairs = [
     {
-      opener: `Hi ${first}, this is ${sender} from ${company}. I know I am calling out of the blue.`,
+      opener: `Hi ${first}, this is ${intro}. I know I am calling out of the blue.`,
       permission:
         "Give me thirty seconds, and if it is not relevant, tell me to get lost and I will not call again.",
     },
     {
-      opener: `${first}, morning — ${sender} here from ${company}. This is a cold call, so I will be brief.`,
+      opener: `${first}, morning — ${intro}. This is a cold call, so I will be brief.`,
       permission: "Thirty seconds, and you have my permission to cut me off.",
     },
     {
-      opener: `Hi ${first}, ${sender} from ${company} — unsolicited call, and I will be quick.`,
+      opener: `Hi ${first}, ${intro} — unsolicited call, and I will be quick.`,
       permission: "Can I have half a minute before you decide whether this is a waste of your time?",
     },
   ];
@@ -289,7 +289,7 @@ export function composeScript(
     reasonLines.push(`One line in my notes is why I called: "${asSentence(lead.trigger)}"`);
     reasonLines.push(
       problemPhrase
-        ? `When I see that, it usually means ${problemPhrase}. That is the part we fix.`
+        ? `What that usually points to: ${problemPhrase}. That is the part we work on.`
         : `When I see that, it usually calls for ${outcome.toLowerCase()}. That is the part we build.`,
     );
   } else {
@@ -313,8 +313,8 @@ export function composeScript(
     ],
   });
 
-  // 4 — Discovery.
-  sections.push(discoveryQuestions(lead, profile));
+  // 4 — Discovery: your questions for the matched service, else neutral ones.
+  sections.push(discoveryQuestions(lead, profile, service));
 
   // 5 — Value bridge with proof.
   sections.push({
@@ -329,7 +329,7 @@ export function composeScript(
         seed,
         2,
       ),
-      `${service.summary}`,
+      service.summary ? `${service.summary}` : "",
       proof
         ? `Closest comparison — ${proof.label}: ${proof.detail}${proof.metric ? ` Result: ${proof.metric}.` : ""}`
         : `Most of our work is ${profile.positioning.differentiators[0] ?? "measured on outcomes"}.`,
@@ -394,7 +394,7 @@ export function composeScript(
   // 9 — Voicemail. Prospect-language problem framing beats a rehearsal of their
   // own notes, and the callback number is always the last thing they hear.
   const voicemail = [
-    `Hi ${first}, ${sender} from ${company}.`,
+    `Hi ${first}, this is ${intro}.`,
     problemPhrase
       ? `The pattern I keep seeing with teams like yours: ${problemPhrase}.`
       : profile.company.oneLiner,
@@ -422,7 +422,7 @@ export function composeScript(
     .join("\n");
 
   const smsFollowUp = [
-    `${first} — ${sender} from ${company}, just tried you.`,
+    `${first} — ${intro}, just tried you.`,
     lead.need
       ? `Why I called: ${truncate(firstSentence(lead.need), 100)}`
       : `Why I called: ${truncate(profile.positioning.valueProps[0] ?? profile.company.oneLiner, 100)}`,

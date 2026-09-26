@@ -135,8 +135,8 @@ export default function BusinessBrainPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Pill tone={profile.meta.seeded ? "amber" : "signal"}>
-            {profile.meta.seeded ? "Seeded example" : `v${profile.meta.version}`}
+          <Pill tone={profile.meta.placeholder ? "danger" : "signal"}>
+            {profile.meta.placeholder ? "Empty" : `v${profile.meta.version}`}
           </Pill>
           <Button variant="primary" onClick={save} disabled={saving}>
             {saving ? <Spinner /> : null}
@@ -170,10 +170,11 @@ export default function BusinessBrainPage() {
         </Card>
       ) : null}
 
-      {profile.meta.seeded ? (
-        <Notice tone="amber" title="This is an example, not your business">
-          Replace it in full. Any live call made against this profile would pitch someone else&apos;s company,
-          metrics and pricing — which is exactly the failure mode this console exists to prevent.
+      {profile.meta.placeholder ? (
+        <Notice tone="danger" title="This profile is empty">
+          Nothing here is invented on your behalf. Everything the console says is derived from these fields,
+          so composition and live dispatch stay blocked until the essentials are filled in — company name,
+          at least one service, and how you describe what you do.
         </Notice>
       ) : null}
 
@@ -464,6 +465,20 @@ export default function BusinessBrainPage() {
                     onChange={(next) =>
                       patch((p) => {
                         p.services = p.services.map((s) => (s.id === service.id ? { ...s, qualifiers: next } : s));
+                        return p;
+                      })
+                    }
+                  />
+                  <LinesField
+                    label="Discovery questions"
+                    hint="One per line. What you actually need to ask when this service is the subject. Leave blank and the composer uses a neutral set — never a set written for someone else's industry."
+                    value={service.discoveryQuestions ?? []}
+                    rows={4}
+                    onChange={(next) =>
+                      patch((p) => {
+                        p.services = p.services.map((s) =>
+                          s.id === service.id ? { ...s, discoveryQuestions: next } : s,
+                        );
                         return p;
                       })
                     }

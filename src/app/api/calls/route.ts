@@ -1,5 +1,5 @@
 import { getEnv, resolveBaseUrl } from "@/lib/env";
-import { getProfile } from "@/lib/profile";
+import { composeReadiness, getProfile } from "@/lib/profile";
 import { composeScript } from "@/lib/composer";
 import { openingLine } from "@/lib/dialogue";
 import { evaluateDispatch, LIVE_CONFIRMATION_PHRASE, type Verdict } from "@/lib/safety";
@@ -95,16 +95,32 @@ export async function POST(req: Request): Promise<Response> {
       env,
     );
 
-    // The script is the payload of the call — composed once, reused on every turn.
+    // Dispatch composes on the fly when no script is supplied, so the profile
+    // must be able to support one. Guessing here would put invented claims
+    // about the operator's business into a real prospect's ear.
+    const readiness = composeReadiness(profile);
+    if (!readiness.ok) {
+      return json({ ok: false, error: readiness.detail, missing: readiness.missing }, 409);
+    }
+
+    // The script is the payload of the call. It is composed once and must be
+    // persisted: the voice webhook re-reads it on every turn to stay in
+    // character, and the dispatch desk lists saved scripts for reuse.
     const script = body.scriptId
       ? await getScript(body.scriptId)
-      : composeScript(profile, lead ?? {
-          name: "there",
-          role: "",
-          company: "",
-          industry: "",
-          need: profile.company.oneLiner,
-        }, objective);
+      : await saveScript(
+          composeScript(
+            profile,
+            lead ?? {
+              name: "there",
+              role: "",
+              company: "",
+              industry: "",
+              need: profile.company.oneLiner,
+            },
+            objective,
+          ),
+        );
 
     const clip = body.clipId ? await getClip(body.clipId) : null;
 

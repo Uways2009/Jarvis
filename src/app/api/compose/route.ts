@@ -1,5 +1,5 @@
 import { getEnv } from "@/lib/env";
-import { getProfile } from "@/lib/profile";
+import { composeReadiness, getProfile } from "@/lib/profile";
 import { getScript, saveScript } from "@/lib/repo";
 import { composeScript } from "@/lib/composer";
 import { refineScript } from "@/lib/llm";
@@ -65,6 +65,13 @@ export async function POST(req: Request): Promise<Response> {
 
   const profile = await getProfile();
   const env = getEnv();
+
+  // A specific call needs a specific offer. Guessing here would put invented
+  // claims about the operator's business into a real prospect's ear.
+  const readiness = composeReadiness(profile);
+  if (!readiness.ok) {
+    return json({ ok: false, error: readiness.detail, missing: readiness.missing, readiness }, 409);
+  }
 
   let script: ComposedScript = composeScript(profile, lead, objective);
   let refined = false;

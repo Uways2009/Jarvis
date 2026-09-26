@@ -62,13 +62,15 @@ cp .env.example .env      # fill in what you have; the app runs without any of i
 npm run dev               # http://localhost:3000
 ```
 
-It boots on a **worked example profile** so every surface is functional immediately. That profile
-is labelled in the UI and must be replaced before a live call — the console will tell you so,
-repeatedly.
+It boots with an **empty business profile** — real structure, real compliance defaults, and no
+invented facts. Composition and dispatch stay blocked, with a precise message about what is
+missing, until you describe your actual business. The console will never pitch a plausible
+fiction on your behalf.
 
 ### Going live, in order
 
 1. **Populate the brain** → `/profile`. Services, pricing, proof, objections, tone, compliance.
+   The completeness meter names every field still missing. Nothing is guessed for you.
 2. **Compose** → `/outreach`. Give a real prospect and a real stated need.
 3. **Rehearse** → `/calls`. Run the pre-flight, read the verdict, fix what it flags.
 4. **Make yourself reachable.** Twilio fetches your TwiML and audio over the public internet:
@@ -124,7 +126,7 @@ under a tenth of a second and says so, rather than holding a request open.
 src/
   lib/
     types.ts       the shape of everything
-    profile.ts     the business brain + merge semantics + example profile
+    profile.ts     the business brain, merge semantics, readiness gate
     composer.ts    deterministic call composition
     dialogue.ts    live turn-taking: intent classification, objection matching
     safety.ts      the dispatch gate

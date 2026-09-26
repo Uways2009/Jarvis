@@ -16,12 +16,12 @@ export async function PUT(req: Request): Promise<Response> {
   const incoming: ProfilePatch =
     (body as { profile?: ProfilePatch }).profile ?? (body as ProfilePatch);
 
-  // Saving a real profile clears the seeded flag unless explicitly overridden.
+  // Saving a real profile clears the placeholder flag unless explicitly overridden.
   const next = await saveProfile({
     ...incoming,
     meta: {
       ...(incoming.meta ?? {}),
-      seeded: incoming.meta?.seeded ?? false,
+      placeholder: incoming.meta?.placeholder ?? false,
       label: incoming.meta?.label ?? incoming.company?.name ?? "Business profile",
     },
   });

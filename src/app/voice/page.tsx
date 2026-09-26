@@ -198,7 +198,7 @@ export default function VoiceLabPage() {
               <textarea
                 ref={textarea}
                 className="field teleprompter min-h-[240px] resize-y"
-                placeholder="[warm] Hi Jordan — Alex from Meridian. I know I'm calling out of the blue…"
+                placeholder="[warm] Hi Tunde, this is Product Pro Hub. I know I'm calling out of the blue…"
                 value={text}
                 onChange={(e) => setText(e.target.value)}
               />

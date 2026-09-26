@@ -1,5 +1,6 @@
 import type { BusinessProfile, ComposedScript, Lead, ObjectiveId } from "./types";
 import { overlapScore, stemSet } from "./text";
+import { spokenIntroduction } from "./profile";
 
 /**
  * Call dialogue engine.
@@ -235,11 +236,10 @@ function matchedObjection(
 export function openingLine(ctx: TurnContext): string {
   const { profile } = ctx;
   const name = first(ctx.lead?.name);
-  const sender = profile.sender.name || profile.company.name;
-  const company = profile.company.name;
+  const intro = spokenIntroduction(profile);
   const disclosure = profile.compliance.aiDisclosure.trim();
   return [
-    `Hi ${name}, this is ${sender} from ${company}.`,
+    `Hi ${name}, this is ${intro}.`,
     disclosure,
     `I will keep this to thirty seconds — is that alright?`,
   ]
@@ -254,7 +254,9 @@ export function respond(utterance: string, ctx: TurnContext): TurnDecision {
   const { profile, turn } = ctx;
   const intent = classify(utterance);
   const name = first(ctx.lead?.name);
-  const sender = profile.sender.name || profile.company.name;
+  const human = profile.sender.name.trim();
+  // Subject form for sentences about the human who takes over.
+  const humanSubject = human || "A colleague of mine";
 
   // Hard exits first — a "no" is a complete sentence.
   if (intent === "not_interested") {
@@ -306,7 +308,7 @@ export function respond(utterance: string, ctx: TurnContext): TurnDecision {
     return {
       intent,
       action: "close",
-      say: `${sender} will call you himself. What is the best time and number? — I have noted it, and you will get a confirmation message with the time. Thank you, ${name}.`,
+      say: `${humanSubject} will call you personally and confirm a time with you. What is the best number and window to reach you? Thank you, ${name}.`,
       note: "Capture the requested window, then book it. Do not keep selling.",
     };
   }

@@ -43,7 +43,13 @@ export function buildPreCallBrief(profile: BusinessProfile, lead: Lead): Brief {
       lead.need ? `Stated need: ${lead.need}` : "No stated need — open with a hypothesis and let them correct it.",
       lead.trigger ? `Trigger to reference: ${lead.trigger}` : "",
       segment ? `Closest ICP segment: ${segment.name}` : "",
-      primary?.score ? `Lead with: ${primary.service.name} — ${primary.service.priceAnchor ?? profile.pricing.anchor}` : `Lead with: ${profile.services[0]?.name ?? "your top service"}`,
+      primary?.score
+        ? `Lead with: ${primary.service.name}${
+            (primary.service.priceAnchor ?? profile.pricing.anchor)
+              ? ` — ${primary.service.priceAnchor ?? profile.pricing.anchor}`
+              : " (no price anchor configured)"
+          }`
+        : `Lead with: ${profile.services[0]?.name ?? "your top service"}`,
       secondary?.score ? `Hold in reserve: ${secondary.service.name}` : "",
       proof ? `Proof to cite: ${proof.label} → ${proof.metric ?? proof.detail.slice(0, 80)}` : "",
     ].filter(Boolean),
