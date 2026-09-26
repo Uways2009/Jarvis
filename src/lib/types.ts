@@ -38,6 +38,65 @@ export interface PricingTier {
   bestFor?: string;
 }
 
+/**
+ * How this business talks about money.
+ *
+ * `budget_led` is standard practice across much of the Nigerian SME market, and
+ * it is a fundamentally different conversation from quoting: the buyer names a
+ * figure and you scope to it. The live call engine respects this — under
+ * `budget_led` it never reads a tier price aloud, because publishing a number
+ * to a buyer who is about to name a bigger one is how margin disappears.
+ */
+export type PriceDisclosure = "quoted" | "budget_led";
+
+export interface BudgetBand {
+  id: string;
+  label: string;
+  /** Indicative range. Internal scoping aid — never spoken to a prospect. */
+  range: string;
+  /** What a buyer at this level realistically gets. This part is sayable. */
+  scope: string;
+}
+
+export interface Pricing {
+  model: string;
+  anchor: string;
+  tiers: PricingTier[];
+  commercialNotes: string;
+  disclosure: PriceDisclosure;
+  currency: string;
+  /** How to ask for the budget without sounding like an interrogation. */
+  budgetPrompt: string;
+  /** What to say when they will not name a figure. */
+  noBudgetResponse: string;
+  /** Internal scoping guide, so a stated budget can be answered usefully. */
+  budgetBands: BudgetBand[];
+  /** Payment structure offered, e.g. milestone splits. */
+  paymentTerms: string;
+}
+
+/**
+ * Market grounding.
+ *
+ * The console has no live web access, so this is an explicit, dated snapshot of
+ * how business is actually done in a market — written down, reviewable, and
+ * editable, rather than a silent assumption baked into prompt wording.
+ */
+export interface MarketGrounding {
+  country: string;
+  currency: string;
+  /** When this snapshot was last reviewed. Stale knowledge should be visible. */
+  asOf: string;
+  /** Structural facts about how buying happens here. */
+  norms: string[];
+  /** What buyers in this market care about, argue about, and ask for. */
+  buyerConcerns: string[];
+  /** Local phrasing worth understanding. */
+  vocabulary: { term: string; meaning: string }[];
+  /** Reality checks the assistant must not overpromise. */
+  cautions: string[];
+}
+
 export interface IcpSegment {
   name: string;
   description: string;
@@ -82,12 +141,8 @@ export interface BusinessProfile {
     proofPoints: ProofPoint[];
   };
   services: Service[];
-  pricing: {
-    model: string;
-    anchor: string;
-    tiers: PricingTier[];
-    commercialNotes: string;
-  };
+  pricing: Pricing;
+  market: MarketGrounding;
   icp: {
     segments: IcpSegment[];
     decisionMakers: string[];

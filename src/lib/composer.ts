@@ -330,12 +330,19 @@ export function composeScript(
         2,
       ),
       service.summary ? `${service.summary}` : "",
+      // Proof when it exists. These are whole sentences, so they are dropped in
+      // as their own line rather than spliced into a clause — "Most of our work
+      // is We scope to your budget" is how a competent operator starts sounding
+      // like a machine.
       proof
         ? `Closest comparison — ${proof.label}: ${proof.detail}${proof.metric ? ` Result: ${proof.metric}.` : ""}`
-        : `Most of our work is ${profile.positioning.differentiators[0] ?? "measured on outcomes"}.`,
-      profile.positioning.differentiators[1]
-        ? `Two things worth knowing about how we work: ${profile.positioning.differentiators[0]} And ${profile.positioning.differentiators[1]}`
-        : (profile.positioning.differentiators[0] ?? ""),
+        : asSentence(profile.positioning.valueProps[0] ?? ""),
+      // A differentiator, framed as a statement rather than a sentence fragment.
+      profile.positioning.differentiators[0]
+        ? `Worth knowing about how we work: ${asSentence(profile.positioning.differentiators[0])}`
+        : "",
+      // The buyer concern, phrased as the question they are already thinking.
+      profile.market.buyerConcerns[0] ? `You may be wondering: ${profile.market.buyerConcerns[0]}` : "",
     ].filter(Boolean),
     cues: [
       "Ask for the micro-commitment before this section, not after.",
@@ -364,18 +371,35 @@ export function composeScript(
     });
   }
 
-  // 7 — Close.
+  // 7 — Close. Under budget-led pricing, money is only ever opened by asking
+  // for *their* figure — never by offering ours.
+  const closeLines: string[] = [pick(CLOSES[objective], seed, 3)];
+
+  if (profile.pricing.disclosure === "budget_led") {
+    // One line, not two: the prompt already explains the posture, and saying it
+    // twice in the same breath makes the operator sound nervous about money.
+    closeLines.push(
+      `On cost, since it usually comes up: ${asSentence(
+        profile.pricing.budgetPrompt || "we build to whatever you have set aside, so tell me what you were thinking",
+      )}`,
+    );
+  } else if (profile.pricing.anchor) {
+    closeLines.push(profile.pricing.anchor);
+  }
+
+  closeLines.push(
+    profile.voice.signaturePhrase ? profile.voice.signaturePhrase : "Does that land, or am I off track?",
+  );
+
   sections.push({
     kind: "close",
     label: "Close — two options, no open questions",
-    lines: [
-      pick(CLOSES[objective], seed, 3),
-      profile.voice.signaturePhrase
-        ? profile.voice.signaturePhrase
-        : "Does that land, or am I off track?",
-    ],
+    lines: closeLines,
     cues: [
       "Offer two times, not 'sometime next week'.",
+      profile.pricing.disclosure === "budget_led"
+        ? "Money: ask for their figure first. Do not name a price — naming one first anchors the whole negotiation low."
+        : "Money: give the anchor from the profile, once, then stop talking.",
       "If they say yes, stop talking. Confirm the email and hang up gracefully.",
     ],
   });

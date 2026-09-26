@@ -50,6 +50,24 @@ export const BLANK_PROFILE: BusinessProfile = {
     anchor: "",
     tiers: [],
     commercialNotes: "",
+    // Default to the more conservative posture: never quote unprompted.
+    disclosure: "budget_led",
+    currency: "",
+    budgetPrompt:
+      "We do not work from a fixed price list — we build to what you have set aside, so you get the most for it. What budget were you thinking for this?",
+    noBudgetResponse:
+      "That is fine. Tell me what you want the site to do, and I will send a short note with the options and what each would take. No obligation.",
+    budgetBands: [],
+    paymentTerms: "",
+  },
+  market: {
+    country: "",
+    currency: "",
+    asOf: "",
+    norms: [],
+    buyerConcerns: [],
+    vocabulary: [],
+    cautions: [],
   },
   icp: {
     segments: [],
@@ -165,7 +183,15 @@ export function mergeProfile(stored: ProfilePatch): BusinessProfile {
 
 export async function getProfile(): Promise<BusinessProfile> {
   const stored = await readJson<ProfilePatch>("profile", {});
-  return mergeProfile(stored);
+  if (Object.keys(stored).length > 0) return mergeProfile(stored);
+
+  // No saved profile. Fall back to a committed seed if one exists, so a fresh
+  // checkout — or a reset environment — starts from the operator's own business
+  // rather than an empty form. A live profile is never overwritten by the seed.
+  const seed = await readJson<ProfilePatch>("seed", {});
+  if (Object.keys(seed).length > 0) return mergeProfile(seed);
+
+  return mergeProfile({});
 }
 
 export async function saveProfile(incoming: ProfilePatch): Promise<BusinessProfile> {
@@ -222,6 +248,35 @@ export function profileCompleteness(profile: BusinessProfile): Completeness {
   return { score, missing };
 }
 
+/**
+ * Market grounding as prompt text.
+ *
+ * The console has no live web access, so this is the whole of what the
+ * assistant "knows" about how business is done locally. Written down and dated
+ * rather than assumed, so it can be reviewed and corrected.
+ */
+export function marketDigest(profile: BusinessProfile): string {
+  const m = profile.market;
+  if (!m.country && m.norms.length === 0) return "";
+
+  const vocab = m.vocabulary.filter((v) => v.term || v.meaning);
+  return [
+    `MARKET: ${m.country}${m.currency ? ` (${m.currency})` : ""}${m.asOf ? ` — reviewed ${m.asOf}` : ""}`,
+    m.norms.length ? `HOW BUSINESS IS DONE HERE:\n${m.norms.map((n) => `- ${n}`).join("\n")}` : "",
+    m.buyerConcerns.length
+      ? `WHAT THESE BUYERS CARE ABOUT:\n${m.buyerConcerns.map((n) => `- ${n}`).join("\n")}`
+      : "",
+    vocab.length
+      ? `LOCAL VOCABULARY:\n${vocab.map((v) => `- "${v.term}": ${v.meaning}`).join("\n")}`
+      : "",
+    m.cautions.length
+      ? `NEVER OVERPROMISE:\n${m.cautions.map((n) => `- ${n}`).join("\n")}`
+      : "",
+  ]
+    .filter((line) => line.trim() !== "")
+    .join("\n\n");
+}
+
 /** Compact grounding text handed to the language model, when one is configured. */
 export function profileDigest(profile: BusinessProfile): string {
   if (profile.services.length === 0 && !profile.positioning.elevatorPitch.trim()) {
@@ -258,7 +313,13 @@ export function profileDigest(profile: BusinessProfile): string {
     objections ? `OBJECTIONS:\n${objections}` : "",
     `ICP: ${profile.icp.segments.map((s) => s.name).join("; ")}`,
     `TONE: ${profile.voice.tone.join("; ")}. Never use: ${profile.voice.banned.join(", ")}.`,
-    `GOAL: ${profile.goals.primary} (${profile.goals.horizon})`,
+    profile.goals.primary ? `GOAL: ${profile.goals.primary} (${profile.goals.horizon})` : "",
+    profile.pricing.disclosure === "budget_led"
+      ? "PRICING POSTURE: BUDGET-LED. Never state, guess or imply a price. Always get the buyer's figure first, then describe what that budget buys. Every price band is internal scoping only."
+      : profile.pricing.anchor
+        ? `PRICING POSTURE: quoted. Anchor: ${profile.pricing.anchor}`
+        : "",
+    marketDigest(profile),
   ]
     .filter((line) => line.trim() !== "")
     .join("\n\n");

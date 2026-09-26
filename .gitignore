@@ -14,7 +14,9 @@ next-env.d.ts
 /data/suppression.json
 /data/scripts.json
 
-# your real business profile stays on your machine; the example ships instead
+# The live profile is runtime state. A committed seed (data/profile.seed.json)
+# is used only when no live profile exists, so resets and fresh clones start
+# from the operator's own business instead of an empty form.
 /data/profile.json
 
 # env

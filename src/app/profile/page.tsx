@@ -12,12 +12,13 @@ import type {
   Service,
 } from "@/lib/types";
 
-type TabId = "company" | "offer" | "market" | "voice" | "compliance";
+type TabId = "company" | "offer" | "market" | "grounding" | "voice" | "compliance";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "company", label: "Company" },
   { id: "offer", label: "Offer" },
-  { id: "market", label: "Market" },
+  { id: "market", label: "Buyers" },
+  { id: "grounding", label: "Local market" },
   { id: "voice", label: "Voice" },
   { id: "compliance", label: "Compliance" },
 ];
@@ -531,6 +532,162 @@ export default function BusinessBrainPage() {
               subtitle="Give the engine real numbers. Vague pricing produces vague calls and stalled deals."
             />
             <div className="space-y-3.5">
+              <div className="rounded-xl border border-line-soft bg-ink-900/55 p-4">
+                <span className="label">How you talk about money</span>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {([
+                    { id: "budget_led", title: "Budget-led", body: "Never quote. Ask for their figure, scope to it honestly. Standard practice across much of the Nigerian SME market." },
+                    { id: "quoted", title: "Quoted", body: "Publish an anchor. The assistant may state your price once, from the profile." },
+                  ] as const).map((option) => {
+                    const active = profile.pricing.disclosure === option.id;
+                    return (
+                      <button
+                        key={option.id}
+                        onClick={() =>
+                          patch((p) => ({ ...p, pricing: { ...p.pricing, disclosure: option.id } }))
+                        }
+                        className={`rounded-lg border px-3 py-2.5 text-left transition-colors ${
+                          active ? "border-amber/45 bg-amber-soft" : "border-line bg-panel hover:border-mist-600/50"
+                        }`}
+                      >
+                        <div className={`text-[13px] font-medium ${active ? "text-amber" : "text-mist-200"}`}>
+                          {option.title}
+                        </div>
+                        <div className="mt-0.5 text-[11.5px] leading-4 text-mist-600">{option.body}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+                {profile.pricing.disclosure === "budget_led" ? (
+                  <p className="mt-3 text-[12px] leading-5 text-signal">
+                    The live call engine and the composer are locked against quoting. Your price bands below are
+                    treated as internal scoping only — described as scope, never read aloud.
+                  </p>
+                ) : (
+                  <p className="mt-3 text-[12px] leading-5 text-amber">
+                    Quoted mode. The assistant will state your anchor and let the buyer respond.
+                  </p>
+                )}
+              </div>
+
+              <div className="grid gap-3.5 lg:grid-cols-2">
+                <Field label="Currency symbol">
+                  <input
+                    className="field font-mono"
+                    placeholder="₦"
+                    value={profile.pricing.currency}
+                    onChange={(e) => patch((p) => ({ ...p, pricing: { ...p.pricing, currency: e.target.value } }))}
+                  />
+                </Field>
+                <Field label="Payment terms">
+                  <input
+                    className="field"
+                    value={profile.pricing.paymentTerms}
+                    onChange={(e) =>
+                      patch((p) => ({ ...p, pricing: { ...p.pricing, paymentTerms: e.target.value } }))
+                    }
+                  />
+                </Field>
+              </div>
+
+              <Field label="How to ask for their budget" hint="The exact line the assistant uses. Keep it honest and unapologetic.">
+                <textarea
+                  className="field min-h-[68px] resize-y"
+                  value={profile.pricing.budgetPrompt}
+                  onChange={(e) =>
+                    patch((p) => ({ ...p, pricing: { ...p.pricing, budgetPrompt: e.target.value } }))
+                  }
+                />
+              </Field>
+
+              <Field label="When they will not name a figure">
+                <textarea
+                  className="field min-h-[68px] resize-y"
+                  value={profile.pricing.noBudgetResponse}
+                  onChange={(e) =>
+                    patch((p) => ({ ...p, pricing: { ...p.pricing, noBudgetResponse: e.target.value } }))
+                  }
+                />
+              </Field>
+
+              <SectionLabel>Scoping bands — internal only</SectionLabel>
+              <p className="-mt-1 text-[12px] leading-5 text-mist-500">
+                These let the assistant answer usefully when a buyer names a budget: it describes the <em>scope</em>{" "}
+                that fits, never the range. Nothing here is spoken aloud.
+              </p>
+              <div className="grid gap-3 lg:grid-cols-2">
+                {profile.pricing.budgetBands.map((band, index) => (
+                  <SubCard
+                    key={band.id}
+                    title={band.label || `Band ${index + 1}`}
+                    onRemove={() =>
+                      patch((p) => ({
+                        ...p,
+                        pricing: { ...p.pricing, budgetBands: p.pricing.budgetBands.filter((b) => b.id !== band.id) },
+                      }))
+                    }
+                  >
+                    <Field label="Label">
+                      <input
+                        className="field"
+                        value={band.label}
+                        onChange={(e) =>
+                          patch((p) => {
+                            p.pricing.budgetBands = p.pricing.budgetBands.map((b) =>
+                              b.id === band.id ? { ...b, label: e.target.value } : b,
+                            );
+                            return p;
+                          })
+                        }
+                      />
+                    </Field>
+                    <Field label="Range (internal)" hint="e.g. 250,000 - 600,000">
+                      <input
+                        className="field font-mono"
+                        value={band.range}
+                        onChange={(e) =>
+                          patch((p) => {
+                            p.pricing.budgetBands = p.pricing.budgetBands.map((b) =>
+                              b.id === band.id ? { ...b, range: e.target.value } : b,
+                            );
+                            return p;
+                          })
+                        }
+                      />
+                    </Field>
+                    <Field label="What it buys (sayable)" hint="Describe scope, not cost. This is what the assistant may say aloud.">
+                      <textarea
+                        className="field min-h-[64px] resize-y"
+                        value={band.scope}
+                        onChange={(e) =>
+                          patch((p) => {
+                            p.pricing.budgetBands = p.pricing.budgetBands.map((b) =>
+                              b.id === band.id ? { ...b, scope: e.target.value } : b,
+                            );
+                            return p;
+                          })
+                        }
+                      />
+                    </Field>
+                  </SubCard>
+                ))}
+              </div>
+              <Button
+                variant="secondary"
+                onClick={() =>
+                  patch((p) => {
+                    p.pricing.budgetBands = [
+                      ...p.pricing.budgetBands,
+                      { id: `band_${Date.now()}`, label: "", range: "", scope: "" },
+                    ];
+                    return p;
+                  })
+                }
+              >
+                Add scoping band
+              </Button>
+
+              <SectionLabel>Published tiers (optional)</SectionLabel>
               <div className="grid gap-3.5 lg:grid-cols-2">
                 <Field label="Pricing model">
                   <input
@@ -539,7 +696,7 @@ export default function BusinessBrainPage() {
                     onChange={(e) => patch((p) => ({ ...p, pricing: { ...p.pricing, model: e.target.value } }))}
                   />
                 </Field>
-                <Field label="Anchor line" hint="The sentence you use when price comes up first.">
+                <Field label="Anchor line" hint="Only used in quoted mode.">
                   <input
                     className="field"
                     value={profile.pricing.anchor}
@@ -840,6 +997,142 @@ export default function BusinessBrainPage() {
               </Button>
             </Card>
           </div>
+        </div>
+      ) : null}
+
+      {tab === "grounding" ? (
+        <div className="space-y-5">
+          <Notice tone="info" title="How the assistant knows your market">
+            The console has no live web access, so this is the whole of what it knows about how business is
+            done locally — written down and dated rather than silently assumed. Update it whenever the market
+            moves. Everything here is yours to correct.
+          </Notice>
+          <div className="grid gap-5 lg:grid-cols-2">
+            <Card>
+              <CardHeader eyebrow="Context" title="Country and currency" />
+              <div className="space-y-3.5">
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Country">
+                    <input
+                      className="field"
+                      value={profile.market.country}
+                      onChange={(e) => patch((p) => ({ ...p, market: { ...p.market, country: e.target.value } }))}
+                    />
+                  </Field>
+                  <Field label="Currency">
+                    <input
+                      className="field"
+                      value={profile.market.currency}
+                      onChange={(e) => patch((p) => ({ ...p, market: { ...p.market, currency: e.target.value } }))}
+                    />
+                  </Field>
+                </div>
+                <Field label="Reviewed as of" hint="Stale market knowledge should be visible, not silent.">
+                  <input
+                    className="field"
+                    value={profile.market.asOf}
+                    onChange={(e) => patch((p) => ({ ...p, market: { ...p.market, asOf: e.target.value } }))}
+                  />
+                </Field>
+                <LinesField
+                  label="How business is done here"
+                  rows={9}
+                  hint="One per line. Buying behaviour, channels, payment habits, cultural norms."
+                  value={profile.market.norms}
+                  onChange={(next) => patch((p) => ({ ...p, market: { ...p.market, norms: next } }))}
+                />
+              </div>
+            </Card>
+
+            <div className="space-y-5">
+              <Card>
+                <CardHeader eyebrow="Empathy" title="What these buyers actually care about" />
+                <LinesField
+                  label="Buyer concerns"
+                  rows={6}
+                  value={profile.market.buyerConcerns}
+                  onChange={(next) => patch((p) => ({ ...p, market: { ...p.market, buyerConcerns: next } }))}
+                />
+              </Card>
+
+              <Card>
+                <CardHeader
+                  eyebrow="Discipline"
+                  title="Never overpromise"
+                  subtitle="Hard limits on what the assistant may claim. These protect you."
+                />
+                <LinesField
+                  label="Cautions"
+                  rows={5}
+                  value={profile.market.cautions}
+                  onChange={(next) => patch((p) => ({ ...p, market: { ...p.market, cautions: next } }))}
+                />
+              </Card>
+            </div>
+          </div>
+
+          <Card>
+            <CardHeader
+              eyebrow="Ear"
+              title="Local vocabulary"
+              subtitle="What the buyer says, and what they actually mean when they say it."
+            />
+            <div className="grid gap-3 lg:grid-cols-2">
+              {profile.market.vocabulary.map((entry, index) => (
+                <SubCard
+                  key={index}
+                  title={entry.term || `Phrase ${index + 1}`}
+                  onRemove={() =>
+                    patch((p) => ({
+                      ...p,
+                      market: { ...p.market, vocabulary: p.market.vocabulary.filter((_, i) => i !== index) },
+                    }))
+                  }
+                >
+                  <Field label="What they say">
+                    <input
+                      className="field"
+                      value={entry.term}
+                      onChange={(e) =>
+                        patch((p) => {
+                          p.market.vocabulary = p.market.vocabulary.map((v, i) =>
+                            i === index ? { ...v, term: e.target.value } : v,
+                          );
+                          return p;
+                        })
+                      }
+                    />
+                  </Field>
+                  <Field label="What they mean">
+                    <textarea
+                      className="field min-h-[64px] resize-y"
+                      value={entry.meaning}
+                      onChange={(e) =>
+                        patch((p) => {
+                          p.market.vocabulary = p.market.vocabulary.map((v, i) =>
+                            i === index ? { ...v, meaning: e.target.value } : v,
+                          );
+                          return p;
+                        })
+                      }
+                    />
+                  </Field>
+                </SubCard>
+              ))}
+            </div>
+            <Button
+              variant="secondary"
+              className="mt-4"
+              onClick={() =>
+                patch((p) => {
+                  p.market.vocabulary = [...p.market.vocabulary, { term: "", meaning: "" }];
+                  return p;
+                })
+              }
+            >
+              Add phrase
+            </Button>
+          </Card>
         </div>
       ) : null}
 

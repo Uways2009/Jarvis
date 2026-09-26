@@ -1,4 +1,4 @@
-import type { BusinessProfile, ComposedScript, Lead, ObjectiveId } from "./types";
+import type { BudgetBand, BusinessProfile, ComposedScript, Lead, ObjectiveId } from "./types";
 import { overlapScore, stemSet } from "./text";
 import { spokenIntroduction } from "./profile";
 
@@ -14,6 +14,8 @@ import { spokenIntroduction } from "./profile";
 
 export type TurnIntent =
   | "interest"
+  | "budget_stated"
+  | "budget_refused"
   | "question"
   | "objection_price"
   | "objection_timing"
@@ -79,6 +81,30 @@ const PATTERNS: { intent: TurnIntent; weight: number; phrases: RegExp[] }[] = [
       /\bpass me (to|on)\b/i,
       /\btransfer me\b/i,
       /\bhuman being\b/i,
+    ],
+  },
+  {
+    intent: "budget_refused",
+    weight: 78,
+    phrases: [
+      /\brather not (?:discuss|say|talk about|get into)\b/i,
+      /\bjust (?:tell|give) me (?:your |a |the )?(?:price|figure|number|quote)\b/i,
+      /\bwhy (?:do you|d'?you) need to know\b/i,
+      /\bdon'?t (?:ask|need) (?:about )?(?:my |the )?budget\b/i,
+      /\bwon'?t (?:say|discuss|tell you)\b[^.]{0,20}\bbudget\b/i,
+      /\bnot comfortable (?:saying|discussing|sharing)\b/i,
+    ],
+  },
+  {
+    intent: "budget_stated",
+    weight: 75,
+    phrases: [
+      /(?:₦|\bnaira\b|\bngn\b)\s?\d/i,
+      /\d[\d,.]*\s?(?:k\b|m\b|million|thousand|naira)/i,
+      /\bbudget\b[^.]{0,30}\b(?:is|of|around|about|between|up to|like)\b/i,
+      /\b(?:we|i)\s(?:have|can (?:do|afford|spend))\b[^.]{0,20}\d/i,
+      /\b(?:spend|pay|afford|budget(?:ed)?)\b[^.]{0,24}(?:₦|\d)/i,
+      /\b(?:my|our)\s(?:budget|range)\b/i,
     ],
   },
   {
@@ -161,16 +187,12 @@ const PATTERNS: { intent: TurnIntent; weight: number; phrases: RegExp[] }[] = [
     intent: "question",
     weight: 20,
     phrases: [
-      /\bhow\b/i,
-      /\bwhat\b/i,
-      /\bwhy\b/i,
-      /\bwhen\b/i,
-      /\bwhich\b/i,
-      /\bwho\b/i,
-      /\bcan you\b/i,
-      /\bdo you\b/i,
-      /\bhave you\b/i,
-      /\?$/,
+      // Interrogatives only count at the start of a clause. Matching bare "who"
+      // anywhere turns "I have someone who can do it cheaper" into a question
+      // and buries an objection the operator has already prepared an answer for.
+      /(?:^|[.!?]\s+)(?:how|what|why|when|which|who|where)\b/i,
+      /\b(?:can|could|would|will|do|does|did|have|has|is|are) you\b/i,
+      /\?\s*$/,
     ],
   },
 ];
@@ -187,12 +209,102 @@ export function classify(utterance: string): TurnIntent {
   return best?.intent ?? "unclear";
 }
 
+
+/* ── Budget-led pricing ──────────────────────────────────────────────────── */
+
+/** Pull the largest currency figure out of an utterance, for scoping answers. */
+export function extractBudget(utterance: string): { amount: number | null; label: string | null } {
+  const text = utterance.toLowerCase().replace(/,/g, "");
+  const matches = [...text.matchAll(/(\d+(?:\.\d+)?)\s*(k|m|million|thousand|naira|ngn)?/gi)];
+
+  let best: number | null = null;
+  let label: string | null = null;
+
+  for (const match of matches) {
+    const value = Number.parseFloat(match[1]!);
+    if (!Number.isFinite(value) || value <= 0) continue;
+    const unit = (match[2] ?? "").toLowerCase();
+    let scaled = value;
+    if (unit === "k" || unit === "thousand") scaled = value * 1_000;
+    else if (unit === "m" || unit === "million") scaled = value * 1_000_000;
+
+    // Ignore obvious non-currency numbers in a budget sentence (page counts etc.)
+    if (scaled < 1_000) continue;
+
+    if (best === null || scaled > best) {
+      best = scaled;
+      label = match[0]!.trim();
+    }
+  }
+
+  return { amount: best, label };
+}
+
+/**
+ * Match a stated budget to a scoping band and describe what it buys.
+ *
+ * Bands are the operator's scoping guide. The *range* is never read aloud —
+ * only the scope. Telling a buyer their own number back to them is fine;
+ * telling them your floor is not.
+ */
+function scopeForBudget(
+  profile: BusinessProfile,
+  amount: number | null,
+): { band: BudgetBand; fits: boolean } | null {
+  if (amount === null) return null;
+  const bands = profile.pricing.budgetBands;
+  if (bands.length === 0) return null;
+
+  // Parse the first naira figure in each band's range string for comparison.
+  const parsed = bands.map((band) => {
+    const nums = [...band.range.replace(/,/g, "").matchAll(/(\d+(?:\.\d+)?)\s*(k|m|million|thousand)?/gi)]
+      .map((m) => {
+        const v = Number.parseFloat(m[1]!);
+        const u = (m[2] ?? "").toLowerCase();
+        return u === "k" || u === "thousand" ? v * 1_000 : u === "m" || u === "million" ? v * 1_000_000 : v;
+      })
+      .filter((n) => n >= 1_000);
+    return { band, low: nums[0] ?? null, high: nums[1] ?? nums[0] ?? null };
+  });
+
+  const within = parsed.find((p) => p.low !== null && amount >= p.low && (p.high === null || amount <= p.high));
+  if (within) return { band: within.band, fits: true };
+
+  // Below the lowest band, or above the highest.
+  const sorted = parsed.filter((p) => p.low !== null).sort((a, b) => a.low! - b.low!);
+  if (!sorted.length) return null;
+  if (amount < sorted[0]!.low!) return { band: sorted[0]!.band, fits: false };
+  return { band: sorted[sorted.length - 1]!.band, fits: true };
+}
+
 /* ── Spoken construction ─────────────────────────────────────────────────── */
 
 function first(name?: string): string {
   const trimmed = (name ?? "").trim();
   if (!trimmed) return "there";
   return trimmed.split(/\s+/)[0]!.replace(/[^\p{L}'-]/gu, "");
+}
+
+/**
+ * Best stored objection for an utterance, by wording similarity alone.
+ *
+ * Used as a catch-all: when the classifier lands on something generic but the
+ * operator has already written an answer to what was actually said, their
+ * prepared play wins. Their library is authoritative — that is the point of
+ * having one.
+ */
+function nearestStoredObjection(
+  profile: BusinessProfile,
+  utterance: string,
+  minScore = 0.42,
+): { objection: string; reframe: string; score: number } | null {
+  if (!utterance.trim() || profile.objections.length === 0) return null;
+  const tokens = stemSet(utterance);
+  const ranked = profile.objections
+    .map((play) => ({ ...play, score: overlapScore(tokens, play.objection) }))
+    .sort((a, b) => b.score - a.score);
+  const best = ranked[0];
+  return best && best.score >= minScore ? best : null;
 }
 
 /**
@@ -313,27 +425,133 @@ export function respond(utterance: string, ctx: TurnContext): TurnDecision {
     };
   }
 
-  if (intent === "objection_price" || intent === "objection_timing" || intent === "objection_incumbent") {
-    const reframe = matchedObjection(profile, intent, utterance);
-    const anchor = profile.pricing.tiers[0];
-    // Quote a price only when price is the subject. Sprinkling figures into
-    // every answer reads as a pitch; answering where the objection lives reads
-    // as a response.
-    const needsAnchor = Boolean(anchor) && intent === "objection_price";
+  // ── Money, handled according to the operator's disclosure policy ─────────
+  //
+  // Under `budget_led` the assistant will not quote. This is not squeamishness:
+  // naming a number first anchors the whole negotiation, and a buyer who was
+  // prepared to spend more will simply accept the smaller figure. The move is to
+  // get their number, then scope honestly against it.
+  if (intent === "budget_stated") {
+    const { amount } = extractBudget(utterance);
+    const scoped = scopeForBudget(profile, amount);
+    const currency = profile.pricing.currency || "₦";
 
+    if (scoped?.fits) {
+      return {
+        intent,
+        action: "close",
+        say: [
+          `That is workable. At that level you would be looking at ${scoped.band.scope.replace(/\.$/, "")}.`,
+          `${humanSubject} can put that in writing with exactly what it covers, so there are no surprises later.`,
+          `What is the best email for it?`,
+        ].join(" "),
+        note: `Budget-led. Matched band "${scoped.band.label}" (${scoped.band.range}, internal only — never quoted). Scope described, price not repeated back.`,
+      };
+    }
+
+    if (scoped && !scoped.fits) {
+      return {
+        intent,
+        action: "close",
+        say: [
+          `I will be straight with you — for a site that actually brings you customers, that is below what we would need.`,
+          `I would rather tell you that now than take your money and deliver something that does not work.`,
+          `What we could do at that level is ${scoped.band.scope.replace(/\.$/, "")}. Would that be worth a conversation, or would you rather I send you a short note for when the budget is bigger?`,
+        ].join(" "),
+        note: `Budget-led, below floor. Honest decline with a smaller-scope alternative. Never disparage the budget.`,
+      };
+    }
+
+    // A figure was named but there is no band guide configured.
+    return {
+      intent,
+      action: "close",
+      say: [
+        `Thanks for being direct — that helps.`,
+        `Let me get ${humanSubject === "A colleague of mine" ? "a colleague" : humanSubject} to put a short proposal together that fits ${currency}${amount ? Math.round(amount).toLocaleString("en-NG") : "that"} exactly, so you can see what it covers before committing to anything.`,
+        `What is the best email?`,
+      ].join(" "),
+      note: "Budget-led with no band guide configured. Capture the figure, promise a scoped proposal, do not quote.",
+    };
+  }
+
+  // They have declined to name a figure. Respect that immediately — pushing
+  // twice on budget is how an operator gets a reputation.
+  if (intent === "budget_refused") {
+    const budgetLed = profile.pricing.disclosure === "budget_led";
+    return {
+      intent,
+      action: "listen",
+      say: budgetLed
+        ? [
+            profile.pricing.noBudgetResponse ||
+              "That is fine — I will not press you on it. Let me put a short note together with the options and what each would take.",
+            `And I will not ask again.`,
+          ].join(" ")
+        : [
+            profile.pricing.anchor || "Let me give you one figure rather than a range.",
+            `Does that land, or is the number the real obstacle?`,
+          ].join(" "),
+      note: budgetLed
+        ? "BUDGET REFUSED. Do not ask again. Pivot to scope and offer a written proposal."
+        : "Budget refused under quoted pricing. Give the anchor once.",
+    };
+  }
+
+  if (intent === "objection_price") {
+    const budgetLed = profile.pricing.disclosure === "budget_led";
+    return {
+      intent,
+      action: "listen",
+      say: budgetLed
+        ? [
+            profile.pricing.budgetPrompt ||
+              "We do not work from a fixed price list — we build to what you have set aside. What budget were you thinking?",
+            `I ask because it changes what I recommend, not because I am sizing you up.`,
+          ].join(" ")
+        : [
+            matchedObjection(profile, intent, utterance) ??
+              `That is a fair question, and I would rather give you a real number than a range.`,
+            profile.pricing.anchor ? `${profile.pricing.anchor}` : "",
+            `Does that land, or is the number the real obstacle?`,
+          ]
+            .filter(Boolean)
+            .join(" "),
+      note: budgetLed
+        ? "BUDGET-LED: never quote. Get their figure first, then scope against it."
+        : "Quoted pricing configured. Anchor given from the profile only.",
+    };
+  }
+
+  if (intent === "objection_timing" || intent === "objection_incumbent") {
+    const reframe = matchedObjection(profile, intent, utterance);
     return {
       intent,
       action: turn >= MAX_TURNS ? "close" : "listen",
       say: [
         reframe ?? `That is a fair position. ${profile.positioning.differentiators[0] ?? profile.company.oneLiner}`,
-        needsAnchor ? `For scale: ${anchor!.name} is ${anchor!.price}, ${anchor!.cadence}.` : "",
-        intent === "objection_price"
-          ? `Does that land, or is the number the real obstacle?`
-          : `Does that change the picture, or is the timing genuinely wrong?`,
-      ]
-        .filter(Boolean)
-        .join(" "),
-      note: "Agree, reframe with a concrete anchor, then hand the turn back.",
+        intent === "objection_timing"
+          ? `Would it help if I sent one page now and we spoke when it is less busy?`
+          : `Does that change the picture, or are you genuinely covered?`,
+      ].join(" "),
+      note: "Agree, reframe, hand the turn back. No price language.",
+    };
+  }
+
+  // Nothing specific matched. Before falling back to a generic reply, check
+  // whether the operator has written an answer to exactly what was just said.
+  const stored = nearestStoredObjection(profile, utterance);
+  if (stored) {
+    return {
+      intent,
+      action: turn >= MAX_TURNS ? "close" : "listen",
+      say: [
+        stored.reframe,
+        turn >= MAX_TURNS
+          ? `Should I put twenty minutes in the diary so we can go through it properly?`
+          : `Does that answer it, or is there something else behind that?`,
+      ].join(" "),
+      note: `Matched your stored objection "${stored.objection}" (similarity ${stored.score.toFixed(2)}). Answer from the library, not from improvisation.`,
     };
   }
 

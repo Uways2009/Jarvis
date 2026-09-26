@@ -44,12 +44,11 @@ export function buildPreCallBrief(profile: BusinessProfile, lead: Lead): Brief {
       lead.trigger ? `Trigger to reference: ${lead.trigger}` : "",
       segment ? `Closest ICP segment: ${segment.name}` : "",
       primary?.score
-        ? `Lead with: ${primary.service.name}${
-            (primary.service.priceAnchor ?? profile.pricing.anchor)
-              ? ` — ${primary.service.priceAnchor ?? profile.pricing.anchor}`
-              : " (no price anchor configured)"
-          }`
+        ? `Lead with: ${primary.service.name}`
         : `Lead with: ${profile.services[0]?.name ?? "your top service"}`,
+      profile.pricing.disclosure === "budget_led"
+        ? "Money: budget-led. Get their figure first — never quote yours."
+        : "",
       secondary?.score ? `Hold in reserve: ${secondary.service.name}` : "",
       proof ? `Proof to cite: ${proof.label} → ${proof.metric ?? proof.detail.slice(0, 80)}` : "",
     ].filter(Boolean),
@@ -91,15 +90,33 @@ export function buildDrill(profile: BusinessProfile, focus: string, count = 6): 
     });
   }
 
-  // 2 — Pricing pressure.
-  const anchor = profile.pricing.anchor;
+  // 2 — Pricing pressure. The model answer depends on the operator's policy,
+  // because "what does this cost?" has a different correct answer under
+  // budget-led pricing than it does when you publish a rate card.
+  const budgetLed = profile.pricing.disclosure === "budget_led";
   pool.push({
     question: "What does this cost?",
-    model: `${profile.pricing.model}. ${anchor} ${
-      profile.pricing.tiers[0] ? `Entry point is ${profile.pricing.tiers[0].name} at ${profile.pricing.tiers[0].price}.` : ""
-    } Then stop talking and let them respond.`,
-    why: "Price questions are buying signals. Give one number, not a range, not an apology.",
+    model: budgetLed
+      ? `${profile.pricing.budgetPrompt || "We do not work from a fixed price list — we build to what you have set aside. What budget were you thinking?"} Then be quiet and let them name a figure. When they do, describe what that budget buys — never repeat your own floor back at them.`
+      : `${profile.pricing.model}. ${profile.pricing.anchor} Then stop talking and let them respond.`,
+    why: budgetLed
+      ? "A price question is a buying signal, not an invitation to bid against yourself. Whoever says a number first sets the ceiling — make it them."
+      : "Price questions are buying signals. Give one number, not a range, not an apology.",
   });
+
+  // A second money drill: the buyer names a budget, or refuses to.
+  if (budgetLed) {
+    pool.push({
+      question: "My budget is around that figure — can you work with it?",
+      model: `${profile.pricing.budgetBands.length ? `Match it to your scoping bands (${profile.pricing.budgetBands.map((b) => b.range).join(", ")}) and describe the *scope* that fits.` : "Describe what is realistically achievable at that level."} If it is below what a proper job costs, say so plainly and offer a smaller scope — do not take money for work you cannot do well.`,
+      why: "Honesty about the floor protects the brand. A discount you regret is worse than a call you decline.",
+    });
+    pool.push({
+      question: "I would rather not discuss budget — just tell me your price.",
+      model: profile.pricing.noBudgetResponse,
+      why: "Holding the line politely is the whole discipline of budget-led selling.",
+    });
+  }
 
   // 3 — Credibility.
   const proof = profile.positioning.proofPoints[0];

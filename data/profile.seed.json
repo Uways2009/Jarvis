@@ -1,0 +1,269 @@
+{
+  "meta": {
+    "label": "Product Pro Hub",
+    "placeholder": false
+  },
+  "company": {
+    "name": "Product Pro Hub",
+    "oneLiner": "We design and build websites that give a business a credible, effective presence online.",
+    "category": "Website design & development",
+    "website": "",
+    "hq": "Nigeria",
+    "timezone": "Africa/Lagos",
+    "founded": "",
+    "size": ""
+  },
+  "sender": {
+    "name": "",
+    "role": "",
+    "callbackNumber": "",
+    "email": ""
+  },
+  "positioning": {
+    "elevatorPitch": "Most Nigerian businesses lose customers before they ever speak to them. The website does not load properly on a phone, it does not make clear what the business actually sells, or there is nothing there at all and the customer only sees an Instagram page. We design and build the site that fixes that, for a budget you have actually set aside.",
+    "valueProps": [
+      "Built around what you sell and who buys it, not a template with your logo dropped in.",
+      "Mobile-first, because that is how almost every Nigerian customer will first find you.",
+      "WhatsApp, call and form all wired in, so an interested buyer can reach you in one tap.",
+      "Handed over with training and full access, so you are never locked out of your own site."
+    ],
+    "differentiators": [
+      "We scope to your budget instead of quoting from a fixed price list.",
+      "You own the domain, the site and the hosting accounts from day one.",
+      "Scope and cost agreed in writing before work starts — no mid-project surprises."
+    ],
+    "proofPoints": []
+  },
+  "services": [
+    {
+      "id": "svc_website_build",
+      "name": "Website Design & Build",
+      "summary": "A complete website for your business — designed, written and built to make you look credible online, easy to find, and easy to contact on any phone.",
+      "outcomes": [
+        "A professional-looking site that works properly on a phone",
+        "Clear pages that explain what you do and how to buy",
+        "WhatsApp, call and contact form within one tap of any page",
+        "A site you can update yourself, with full access handed over"
+      ],
+      "qualifiers": [
+        "no website at all",
+        "only on Instagram or WhatsApp",
+        "website looks outdated",
+        "site is not mobile friendly",
+        "customers cannot find us on Google",
+        "losing customers to competitors who look better online",
+        "website is slow or broken",
+        "running ads but there is nothing to send traffic to"
+      ],
+      "discoveryQuestions": [
+        "Where do most of your customers come from at the moment?",
+        "When someone hears about you, where do they go to check you out?",
+        "What should a customer be able to do on your site that they cannot do today?",
+        "Is there a competitor whose website you would want to match or beat?"
+      ],
+      "priceAnchor": ""
+    }
+  ],
+  "pricing": {
+    "model": "Budget-led — scoped to what the client has set aside, agreed in writing before work starts.",
+    "anchor": "",
+    "tiers": [],
+    "commercialNotes": "We do not publish a price list. It is against the law in Nigeria to agree to fix prices with competitors, and commercially it is a mistake: naming a figure first anchors the whole negotiation and a buyer who was ready to spend more simply accepts the smaller number.",
+    "disclosure": "budget_led",
+    "currency": "₦",
+    "budgetPrompt": "We do not work from a fixed price list — we build to what you have set aside, so you get the most for it. What budget were you thinking for this?",
+    "noBudgetResponse": "That is fine. Tell me what you want the site to do, and I will put a short note together with the options and what each would take. No obligation, and you will see the scope before you commit to anything.",
+    "budgetBands": [
+      {
+        "id": "band_starter",
+        "label": "Starter presence",
+        "range": "80,000 - 250,000",
+        "scope": "a clean one-page or 3-page site with your services, photos, and WhatsApp and call buttons"
+      },
+      {
+        "id": "band_business",
+        "label": "Full business site",
+        "range": "250,000 - 600,000",
+        "scope": "a proper 5 to 8 page site with custom design, service pages, Google-ready structure, and a blog you can update yourself"
+      },
+      {
+        "id": "band_ecommerce",
+        "label": "Selling online",
+        "range": "450,000 - 1,500,000",
+        "scope": "a full online store with product catalogue, cart, and Paystack or Flutterwave payments wired in"
+      },
+      {
+        "id": "band_custom",
+        "label": "Custom build",
+        "range": "1,500,000 - 5,000,000",
+        "scope": "a custom-built platform with logins, dashboards or systems integrated with how your business already runs"
+      }
+    ],
+    "paymentTerms": "Milestone-based: a deposit to start, the balance on delivery. Nothing is handed over before final payment, and full access transfers once settled."
+  },
+  "market": {
+    "country": "Nigeria",
+    "currency": "NGN (naira)",
+    "asOf": "2026",
+    "norms": [
+      "Instagram, WhatsApp and referrals are how most Nigerian SMEs actually get customers. A website is usually the credibility check that happens *after* someone hears about you, not the first touch.",
+      "Almost every first visit is on a phone, often on mobile data rather than wifi — page weight and load speed matter more here than on a desktop-first build.",
+      "Buying is relationship-led. People buy from someone they have spoken to. A call is welcomed more than in colder Western markets, but it must be respectful and brief.",
+      "Price is negotiated, and 'how much is it' is a buying question rather than an objection. Answering with a number first is how you end up with the buyer's smaller figure.",
+      "Budget-led scoping is normal practice: the client says what they have, you scope to it honestly. Pushback on an unseen price is expected and is not a rejection.",
+      "Payment is usually milestone-based, and a deposit before work starts is standard and expected.",
+      "Remote work has narrowed the gap, but Lagos-based studios still charge roughly 20-30% more than elsewhere in the country.",
+      "WhatsApp Business is the default business channel, so a click-to-chat button is often the highest-value thing on a small business site."
+    ],
+    "buyerConcerns": [
+      "Will this actually bring me customers, or is it just money spent?",
+      "Can I see sites you have built for businesses like mine?",
+      "Will I be able to update it myself without calling you every time?",
+      "What happens to my site and my domain if we stop working together?",
+      "Is this person going to take my deposit and disappear?"
+    ],
+    "vocabulary": [
+      {
+        "term": "Show me your work",
+        "meaning": "Request for a portfolio. Answer with 2-3 specific comparable sites, not a list of features."
+      },
+      {
+        "term": "Is it going to bring customers?",
+        "meaning": "The real question behind most price objections. Answer with the mechanism — being findable, credible and easy to contact."
+      },
+      {
+        "term": "I have someone who can do it cheaper",
+        "meaning": "Often true. Do not argue on price; ask what happens when that person is unavailable and the site breaks."
+      },
+      {
+        "term": "Send me the account details",
+        "meaning": "Genuine buying intent. Confirm scope and terms in writing first."
+      }
+    ],
+    "cautions": [
+      "Never guarantee Google rankings or a specific position. No legitimate provider can promise that.",
+      "Never guarantee a number of customers or sales.",
+      "Do not promise features you have not scoped — a callback commitment is safer than a technical one.",
+      "Do not agree to fix prices or share pricing with competitors. Price-fixing is prohibited under Nigeria's Federal Competition and Consumer Protection Act (FCCPA)."
+    ]
+  },
+  "icp": {
+    "segments": [
+      {
+        "name": "Small businesses with no site or only social media",
+        "description": "Owner-run businesses that depend on Instagram, WhatsApp and referrals, with no website or one that does not represent them.",
+        "sizeRange": "1-50 staff",
+        "triggers": [
+          "Only present on Instagram, WhatsApp or Facebook",
+          "Recently registered or rebranded",
+          "Running ads with nowhere to send the traffic",
+          "Customers keep asking for a website link"
+        ]
+      },
+      {
+        "name": "Growing businesses whose site has fallen behind",
+        "description": "Established businesses that have outgrown a site built years ago and are losing enquiries to better-presented competitors.",
+        "sizeRange": "10-200 staff",
+        "triggers": [
+          "Site is several years old",
+          "Not mobile-friendly",
+          "Losing deals after the prospect visits the site",
+          "Hiring marketing or social media staff",
+          "Launching a new product or service"
+        ]
+      }
+    ],
+    "decisionMakers": [
+      "Business owner or founder",
+      "Managing director",
+      "Marketing manager",
+      "Operations manager"
+    ],
+    "disqualifiers": [
+      "Shopping purely on the lowest price with no budget in mind",
+      "Wants guaranteed first-page Google rankings",
+      "No budget set aside and no timeline at all",
+      "Nothing about the business to put on a site yet"
+    ],
+    "buyingSignals": [
+      "Only present on social media or WhatsApp",
+      "Running ads but has nowhere to send the traffic",
+      "Website is several years old or not mobile-friendly",
+      "Recently registered, rebranded or launched a product",
+      "Asked a friend to build it and it never got finished"
+    ]
+  },
+  "objections": [
+    {
+      "objection": "I already have a website",
+      "reframe": "That is usually the case. The question is whether it is doing anything for you — does it load quickly on a phone, and does it make clear what you sell and how to buy? Most sites we are asked to replace look fine on a laptop and lose people on a phone."
+    },
+    {
+      "objection": "It is too expensive",
+      "reframe": "That is a fair concern, and I would not want you to spend money you cannot see a return on. We do not work from a fixed price list anyway — we build to what you have set aside. So tell me what you were thinking, and I will tell you honestly whether we can do it properly for that."
+    },
+    {
+      "objection": "I have someone who can do it cheaper",
+      "reframe": "You probably do, and I would never talk you out of saving money. The question I would ask is what happens in six months when something breaks and that person has moved on. You own everything we build, and you get the access details on the day we hand over."
+    },
+    {
+      "objection": "I get all my work through referrals",
+      "reframe": "Referrals are the best channel you have, and also the one you do not control. The first thing nearly every referral does now is look you up before they call. If you are only on Instagram, the referral cools before you ever hear from them."
+    },
+    {
+      "objection": "I do not have time to work on a website",
+      "reframe": "That is exactly why people hire us. The design stage is one short conversation and a look at the draft. Most of the work is ours — we bring you something to react to, rather than a long questionnaire to fill in."
+    },
+    {
+      "objection": "Send me some information",
+      "reframe": "Happy to, but a generic brochure will waste your time. Tell me what you sell and who buys it, and I will send back a short note on what your site should be doing. Where should I send it?"
+    },
+    {
+      "objection": "Will this actually bring me customers?",
+      "reframe": "I will not promise you a number of customers — anyone who does is guessing. What I can tell you is the mechanism. Right now when someone hears about you, there is nothing for them to check. A site fixes three things: you become findable on Google, you look credible enough that the referral does not cool, and they can reach you on WhatsApp in one tap. Whether that turns into customers depends on your business, but right now you are losing the ones who looked and found nothing."
+    },
+    {
+      "objection": "How do I know you will not just take my deposit?",
+      "reframe": "That is a fair thing to ask, and I would rather you asked it. Three things: we agree the scope in writing before anything starts, so you know exactly what you are paying for; payment is milestone-based, so you are not paying everything up front; and the domain, hosting and site are in your name from day one. If we disappeared tomorrow, you would still own everything."
+    }
+  ],
+  "voice": {
+    "tone": [
+      "Plain and practical — assume they are not technical",
+      "Direct about what a website will and will not do",
+      "Warm and respectful, never pushy"
+    ],
+    "banned": [
+      "synergy",
+      "revolutionary",
+      "game-changing",
+      "circle back",
+      "touch base",
+      "reach out",
+      "I hope this email finds you well",
+      "cutting-edge",
+      "world-class",
+      "best-in-class"
+    ],
+    "signaturePhrase": "Does that sound like what you need, or have I got it wrong?"
+  },
+  "goals": {
+    "primary": "",
+    "secondary": [],
+    "horizon": "",
+    "successMetric": ""
+  },
+  "compliance": {
+    "aiDisclosure": "I should say up front — I am an AI assistant calling on behalf of Product Pro Hub. Happy to bring a human onto the line whenever you want one.",
+    "optOutLine": "If you would rather not hear from us again, say the word and I will remove your number today.",
+    "recordingNotice": "This call may be recorded for quality. If you would prefer that I not record, tell me now and I will stop.",
+    "quietHours": {
+      "start": 9,
+      "end": 18
+    },
+    "dailyCap": 25,
+    "cooldownHours": 24,
+    "suppressedNumbers": [],
+    "consentPolicy": "Business-to-business calls only, during Nigerian business hours (WAT). Honour opt-outs immediately and permanently. Disclose AI voice on every live call. Never quote prices or agree pricing terms with competitors."
+  }
+}

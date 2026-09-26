@@ -18,6 +18,7 @@ export const AUDIO_DIR = path.join(DATA_DIR, "audio");
 
 const FILES = {
   profile: path.join(DATA_DIR, "profile.json"),
+  seed: path.join(DATA_DIR, "profile.seed.json"),
   calls: path.join(DATA_DIR, "calls.json"),
   clips: path.join(DATA_DIR, "clips.json"),
   scripts: path.join(DATA_DIR, "scripts.json"),
