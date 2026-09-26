@@ -1,3 +1,4 @@
+import { validateDispatchBody } from "@/lib/dispatch-input";
 import { getEnv, resolveBaseUrl } from "@/lib/env";
 import { composeReadiness, getProfile } from "@/lib/profile";
 import { composeScript } from "@/lib/composer";
@@ -56,15 +57,16 @@ export async function GET(): Promise<Response> {
 export async function POST(req: Request): Promise<Response> {
   try {
     const body = await readJsonBody<DispatchBody>(req);
-    if (!body?.to) return json({ ok: false, error: "A destination number is required." }, 400);
+    const inputError = validateDispatchBody(body);
+    if (inputError || !body || typeof body.to !== "string") return json({ ok: false, error: inputError }, 400);
 
     const env = getEnv();
     const profile = await getProfile();
     const calls = await listCalls();
 
-    const lead: Lead | undefined = body.lead?.name
+    const lead: Lead | undefined = body.lead
       ? {
-          name: body.lead.name ?? "",
+          name: body.lead.name || "there",
           role: body.lead.role ?? "",
           company: body.lead.company ?? "",
           industry: body.lead.industry ?? "",
@@ -95,11 +97,27 @@ export async function POST(req: Request): Promise<Response> {
       env,
     );
 
+    if (!verdict.allowed) {
+      const blocked = await newCallRecord({
+        to: verdict.normalizedTo || body.to,
+        from: env.twilio.fromNumber,
+        mode: requestedMode,
+        status: "failed",
+        lead,
+        objective,
+        blockedReason: verdict.blockers.join(" "),
+        events: [
+          { at: new Date().toISOString(), status: "blocked", detail: verdict.blockers.join(" | ") },
+        ],
+      });
+      return json({ ok: false, blocked: true, verdict, record: blocked }, 400);
+    }
+
     // Dispatch composes on the fly when no script is supplied, so the profile
     // must be able to support one. Guessing here would put invented claims
     // about the operator's business into a real prospect's ear.
     const readiness = composeReadiness(profile);
-    if (!readiness.ok) {
+    if (!body.scriptId && !readiness.ok) {
       return json({ ok: false, error: readiness.detail, missing: readiness.missing }, 409);
     }
 
@@ -122,25 +140,9 @@ export async function POST(req: Request): Promise<Response> {
           ),
         );
 
+    if (!script) return json({ ok: false, error: "The selected script no longer exists. Select another script or compose on the fly." }, 404);
     const clip = body.clipId ? await getClip(body.clipId) : null;
-
-    if (!verdict.allowed) {
-      const blocked = await newCallRecord({
-        to: verdict.normalizedTo || body.to,
-        from: env.twilio.fromNumber,
-        mode: requestedMode,
-        status: "failed",
-        lead,
-        objective,
-        scriptId: script?.id,
-        clipId: clip?.id,
-        blockedReason: verdict.blockers.join(" "),
-        events: [
-          { at: new Date().toISOString(), status: "blocked", detail: verdict.blockers.join(" | ") },
-        ],
-      });
-      return json({ ok: false, blocked: true, verdict, record: blocked, script }, 400);
-    }
+    if (body.clipId && !clip) return json({ ok: false, error: "The selected voice clip no longer exists. Select another clip." }, 404);
 
     const greeting = openingLine({ profile, lead, script: script ?? undefined, turn: 0, objective });
     const voicemail = script?.voicemail ?? `${profile.company.name} — ${profile.company.oneLiner}`;

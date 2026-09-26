@@ -1,3 +1,4 @@
+import { isServerlessRuntime, SERVERLESS_STORAGE_WARNING } from "@/lib/storage-config";
 import { credentialDiagnostics, getEnv } from "@/lib/env";
 import { getProfile, profileCompleteness } from "@/lib/profile";
 import { listCalls, listClips } from "@/lib/repo";
@@ -48,6 +49,7 @@ export async function GET(): Promise<Response> {
   return json({
     ok: true,
     capabilities,
+    storage: { temporary: isServerlessRuntime(), warning: isServerlessRuntime() ? SERVERLESS_STORAGE_WARNING : null },
     credentials: credentialDiagnostics(env),
     profile: {
       label: profile.meta.label,

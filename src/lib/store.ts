@@ -36,8 +36,13 @@ function withLock<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 async function ensureDirs(): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.mkdir(AUDIO_DIR, { recursive: true });
+  try {
+    await fs.mkdir(DATA_DIR, { recursive: true });
+    await fs.mkdir(AUDIO_DIR, { recursive: true });
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code ?? "unknown error";
+    throw new Error(`Runtime storage is not writable at "${DATA_DIR}" (${code}). Set NEXOVIRA_DATA_DIR to a writable directory and redeploy. On serverless hosts, remove an override pointing into /var/task to use temporary rehearsal storage. Live calls require persistent storage.`);
+  }
 }
 
 export async function readJson<T>(file: StoreFile, fallback: T): Promise<T> {

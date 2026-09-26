@@ -99,7 +99,7 @@ fiction on your behalf.
 | `TWILIO_VALIDATE_SIGNATURE` | Keep `true` in production |
 | `NEXOVIRA_DAILY_CALL_CAP` / `NEXOVIRA_NUMBER_COOLDOWN_HOURS` | Volume ceilings |
 | `GEMINI_API_KEY` / `OPENAI_API_KEY` / `GROQ_API_KEY` | Optional. Enables polish on composed scripts |
-| `NEXOVIRA_DATA_DIR` | Where runtime state lives (default `./data`) |
+| `NEXOVIRA_DATA_DIR` | Where runtime state lives (default `./data`; serverless: temporary `/tmp/nexovira-data`) |
 
 Where two names exist for one thing, the app accepts either — keep your own naming. All
 integrations are additive and independent:
@@ -203,3 +203,61 @@ one number, at a low volume, and listen to it.
 Every secret lives in `.env`, which is gitignored. If one is ever exposed — a chat log, a
 screenshot, a shared terminal — rotate it at the provider and update `.env`. Keys do not expire
 on their own, and `git log` is forever; that is precisely why nothing here is committed.
+
+### Calling checks and troubleshooting
+
+- Enter a full international destination, such as `+44 (20) 7946-0958` or
+  `0044 20 7946 0958`. Formatting is removed safely; local numbers without a
+  country code, letters and extensions are rejected rather than guessed.
+- Complete the business profile (or select an existing saved script), then run
+  **Run pre-flight**. It also checks that selected scripts and clips still exist.
+- **Rehearsal never rings a phone.** For real calls configure Twilio credentials,
+  a voice-capable caller ID, and an internet-accessible `PUBLIC_BASE_URL`; set
+  `NEXOVIRA_LIVE_CALLS=armed`, restart, select **Live**, and type `AUTHORIZE CALL`.
+  Trial accounts may require the destination to be verified in Twilio.
+- The prospect's IANA time zone is honored even without a name. Invalid time
+  zones must be corrected before live dispatch. Calling hours and opt-outs still
+  apply.
+- Attempts refused before dispatch or rejected without a Twilio SID no longer
+  consume the number cooldown or daily allowance. Actual carrier calls and
+  pending dispatches still count.
+
+Run the calling regression tests with `npm test`; no real calls are placed.
+
+### Serverless storage (`/var/task/data` error)
+
+Vercel and AWS Lambda do not provide a writable application directory. Without
+an explicit `NEXOVIRA_DATA_DIR`, the app now uses the operating system temporary
+directory (`/tmp/nexovira-data` on these hosts), so profile saves and rehearsals
+no longer attempt to create `/var/task/data`. Redeploy the updated code. If you
+previously set `NEXOVIRA_DATA_DIR=./data` or `/var/task/data`, remove that override.
+An invalid explicit directory produces an actionable storage error instead of
+silently moving your data.
+
+**Temporary storage is only suitable for demonstrations/rehearsals.** Data may
+vanish on cold starts, and separate function instances do not share profiles,
+call records, audio, or opt-out lists. Consequently the safety gate blocks live
+calls on detected serverless deployments, even when Twilio is armed. This is not
+resolved by setting `NEXOVIRA_DATA_DIR=/tmp`.
+
+For live calls with the current file-backed store, deploy a single application
+instance on a server/container with a persistent volume, set
+`NEXOVIRA_DATA_DIR` to its writable mount (for example `/mnt/nexovira`), and set
+`PUBLIC_BASE_URL` to the public app origin. Serverless live calling requires a
+shared database and object-storage implementation, which is not included in
+this filesystem fix.
+
+### Vercel-safe real phone testing
+
+Open **Dispatch → Phone test** (`/calls/test`) for an isolated rehearsal/live
+integration test without changing the existing business dispatch workflow.
+The live test uses the official Twilio SDK, signed webhooks and shared Redis
+storage rather than local files. It requires an operator password, an allowlist
+of consenting test numbers, explicit authorization and atomic rate limits.
+
+See **[Phone test setup and verification](docs/PHONE_TEST.md)** for the exact
+Vercel variables, Twilio Console configuration, webhook URLs, testing steps,
+file manifest and serverless limitations. The earlier filesystem warning above
+still applies to the **original business dispatch**, not this Redis-backed test
+flow. Real carrier connectivity must be verified after configuring your deployed
+services; the repository's automated tests mock Twilio and Redis.

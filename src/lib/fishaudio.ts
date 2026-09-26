@@ -15,6 +15,8 @@ export type FishModel = (typeof FISH_MODELS)[number];
 
 export interface SynthesizeInput {
   text: string;
+  /** Shorter budget for interactive phone webhooks; defaults to the studio budget. */
+  timeoutMs?: number;
   referenceId?: string;
   model?: string;
   format?: "mp3" | "wav" | "opus" | "pcm";
@@ -91,7 +93,7 @@ export async function synthesize(
       },
       body: JSON.stringify(payload),
       cache: "no-store",
-      signal: AbortSignal.timeout(SYNTHESIS_TIMEOUT_MS),
+      signal: AbortSignal.timeout(Math.min(input.timeoutMs ?? SYNTHESIS_TIMEOUT_MS, SYNTHESIS_TIMEOUT_MS)),
     });
   } catch (error) {
     const err = error as Error & { cause?: { code?: string } };

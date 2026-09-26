@@ -58,9 +58,14 @@ export function isE164(value: string): boolean {
 }
 
 export function normalizePhone(value: string): string {
+  // Only remove presentation characters. Never silently turn letters or an
+  // extension into a different destination, or guess a missing country code.
+  if (typeof value !== "string") return "";
   const trimmed = value.trim();
-  const digits = trimmed.replace(/[^\d+]/g, "");
-  return digits.startsWith("+") ? digits : `+${digits.replace(/\+/g, "")}`;
+  if (!trimmed || !/^[+\d\s().-]+$/.test(trimmed)) return "";
+  const compact = trimmed.replace(/[\s().-]/g, "");
+  if (compact.startsWith("00")) return `+${compact.slice(2)}`;
+  return compact;
 }
 
 /**
