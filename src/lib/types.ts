@@ -250,7 +250,7 @@ export interface VoiceClip {
 export interface Capabilities {
   twilio: { ok: boolean; missing: string[]; fromNumber?: string };
   fishAudio: { ok: boolean; missing: string[]; model: string };
-  llm: { ok: boolean; provider?: "gemini" | "openai"; model?: string };
+  llm: { ok: boolean; provider?: "gemini" | "openai" | "groq"; model?: string };
   liveCallsArmed: boolean;
   webhookBaseUrl: string;
   dataDir: string;

@@ -87,22 +87,34 @@ repeatedly.
 | Variable | Purpose |
 | --- | --- |
 | `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` | REST credentials and, for the token, webhook signature validation |
-| `TWILIO_FROM_NUMBER` | Caller ID; must be a voice-capable number you own |
+| `TWILIO_FROM_NUMBER` | Caller ID; must be a voice-capable number you own. `TWILIO_PHONE_NUMBER` and `TWILIO_CALLER_ID` accepted |
 | `TWILIO_TRANSFER_NUMBER` | Warm-transfer target when a prospect asks for a human |
 | `FISH_AUDIO_API_KEY` | Voice synthesis |
-| `FISH_AUDIO_REFERENCE_ID` | Voice model id; blank uses the platform default |
+| `FISH_AUDIO_REFERENCE_ID` | Voice model id; `FISH_AUDIO_VOICE_ID` accepted. Blank uses the platform default |
 | `FISH_AUDIO_MODEL` | Default `s2.1-pro-free` — same weights as `s2.1-pro`, free to evaluate |
 | `PUBLIC_BASE_URL` | Public origin Twilio fetches TwiML and audio from |
 | `NEXOVIRA_LIVE_CALLS` | `armed` enables real dialling. Anything else = rehearsal only |
 | `TWILIO_VALIDATE_SIGNATURE` | Keep `true` in production |
 | `NEXOVIRA_DAILY_CALL_CAP` / `NEXOVIRA_NUMBER_COOLDOWN_HOURS` | Volume ceilings |
-| `GEMINI_API_KEY` / `OPENAI_API_KEY` | Optional. Enables polish on composed scripts |
+| `GEMINI_API_KEY` / `OPENAI_API_KEY` / `GROQ_API_KEY` | Optional. Enables polish on composed scripts |
 | `NEXOVIRA_DATA_DIR` | Where runtime state lives (default `./data`) |
+
+Where two names exist for one thing, the app accepts either — keep your own naming. All
+integrations are additive and independent:
 
 **Without Twilio credentials** the console still composes, renders voice, rehearses and logs.
 **Without a Fish Audio key** dispatch falls back to Twilio's built-in speech synthesis.
 **Without a language-model key** the deterministic engine runs alone — a fully supported mode,
 not a degraded one.
+
+Every credential is checked for *shape* on the console's readiness panel (`AC` + 32 hex, a
+32-character auth token, a plausible E.164 number, an `sk-…` key). That catches the most common
+failure — a key mangled in transit — before you waste a dispatch on it. It does not prove a
+credential is active; only a live call does that.
+
+**Timeouts are bounded everywhere.** Twilio REST calls abort after 20s, script polish after 15s,
+synthesis after 90s. A configured-but-unreachable provider degrades to the deterministic path in
+under a tenth of a second and says so, rather than holding a request open.
 
 ---
 
@@ -164,13 +176,28 @@ every jurisdiction you dial into.
 
 ## Verified vs. unverified
 
-Tested end-to-end in this repository: composition and matching, the full safety gate, dry-run
-dispatch and transcripts, webhook TwiML generation for both human and machine answers, the
-objection/opt-out/transfer branches of the live engine, permanent suppression, profile merge
-semantics, path-traversal guards, and graceful degradation with no keys present.
+Tested end-to-end in this repository: composition and service matching, the full safety gate,
+dry-run dispatch and transcripts, webhook TwiML for both human and machine answers, the
+objection/opt-out/transfer branches of the live engine, permanent suppression enforced on the
+next dispatch, profile merge semantics, audio path-traversal guards, and graceful degradation
+with no keys present.
 
-Not exercised against the live services, because the development sandbox blocks outbound
-connections to `api.twilio.com`, `api.fish.audio` and the LLM endpoints: placing a real Twilio
-call, synthesising real audio, and model polish. Those paths are implemented to each provider's
-documented contract and fail loudly rather than silently — but the first real call is yours to
-place, at a low volume, with the rehearsal step completed first.
+Verified against **real credentials in this repo**: webhook signature validation (a valid HMAC
+returns TwiML, a tampered or absent signature returns 403 on both the voice and turn endpoints),
+the complete live dispatch path from gate to Twilio request — which passes every check, forms
+the request, and fails only at the network boundary — credential shape validation, and
+provider-degradation timing.
+
+**Not exercised against the live services.** The development sandbox resets the TLS handshake to
+every non-allowlisted host, so `api.twilio.com`, `api.fish.audio`, `api.groq.com` and Google's
+endpoints are all unreachable from here. Three things therefore remain unproven until you run
+them on an open network: a real Twilio call being placed, real Fish Audio synthesis, and Groq
+polish on a composed script. Each is implemented to its provider's documented contract and fails
+loudly rather than silently. The first real call is yours — rehearse at the desk first, then dial
+one number, at a low volume, and listen to it.
+
+## Rotating a key
+
+Every secret lives in `.env`, which is gitignored. If one is ever exposed — a chat log, a
+screenshot, a shared terminal — rotate it at the provider and update `.env`. Keys do not expire
+on their own, and `git log` is forever; that is precisely why nothing here is committed.

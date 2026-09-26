@@ -16,10 +16,17 @@ import { estimateSeconds, words } from "./text";
  */
 
 export interface LlmProvider {
-  provider: "gemini" | "openai";
+  provider: "gemini" | "openai" | "groq";
   model: string;
   key: string;
 }
+
+/**
+ * A configured-but-slow provider must never hold a request open. Polish is a
+ * bonus; the deterministic script is already in hand, so this gives up quickly
+ * and lets the operator get on with the call.
+ */
+const LLM_TIMEOUT_MS = 15_000;
 
 export function llmProvider(env: Env): LlmProvider | null {
   if (env.llm.geminiKey) {
@@ -27,6 +34,14 @@ export function llmProvider(env: Env): LlmProvider | null {
   }
   if (env.llm.openaiKey) {
     return { provider: "openai", model: env.llm.model || "gpt-4o-mini", key: env.llm.openaiKey };
+  }
+  if (env.llm.groqKey) {
+    // Groq is OpenAI-compatible: same body, different host and model defaults.
+    return {
+      provider: "groq",
+      model: env.llm.model || "llama-3.3-70b-versatile",
+      key: env.llm.groqKey,
+    };
   }
   return null;
 }
@@ -99,6 +114,7 @@ async function callGemini(provider: LlmProvider, prompt: string): Promise<string
         generationConfig: { temperature: 0.7, responseMimeType: "application/json" },
       }),
       cache: "no-store",
+      signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
     },
   );
   if (!res.ok) return null;
@@ -108,8 +124,15 @@ async function callGemini(provider: LlmProvider, prompt: string): Promise<string
   return body.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
 }
 
-async function callOpenAi(provider: LlmProvider, prompt: string): Promise<string | null> {
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+const OPENAI_COMPATIBLE_ENDPOINTS: Record<string, string> = {
+  openai: "https://api.openai.com/v1/chat/completions",
+  groq: "https://api.groq.com/openai/v1/chat/completions",
+};
+
+async function callOpenAiCompatible(provider: LlmProvider, prompt: string): Promise<string | null> {
+  const endpoint = OPENAI_COMPATIBLE_ENDPOINTS[provider.provider];
+  if (!endpoint) return null;
+  const res = await fetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -125,6 +148,7 @@ async function callOpenAi(provider: LlmProvider, prompt: string): Promise<string
       ],
     }),
     cache: "no-store",
+    signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
   });
   if (!res.ok) return null;
   const body = (await res.json()) as { choices?: { message?: { content?: string } }[] };
@@ -155,7 +179,10 @@ export async function refineScript(
   const prompt = buildPrompt(profile, script);
   let raw: string | null = null;
   try {
-    raw = provider.provider === "gemini" ? await callGemini(provider, prompt) : await callOpenAi(provider, prompt);
+    raw =
+      provider.provider === "gemini"
+        ? await callGemini(provider, prompt)
+        : await callOpenAiCompatible(provider, prompt);
   } catch {
     return null;
   }

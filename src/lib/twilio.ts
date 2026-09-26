@@ -12,6 +12,12 @@ import { escapeXml } from "./text";
 
 const API_ROOT = "https://api.twilio.com/2010-04-01";
 
+/**
+ * Reaching Twilio's REST API should be sub-second. If it is not, something is
+ * wrong and the operator needs to know rather than watch a spinner.
+ */
+const TWILIO_TIMEOUT_MS = 20_000;
+
 export interface CreateCallInput {
   to: string;
   from: string;
@@ -94,9 +100,9 @@ export async function createCall(
     }
   }
 
-  const res = await fetch(
-    `${API_ROOT}/Accounts/${env.twilio.accountSid}/Calls.json`,
-    {
+  let res: Response;
+  try {
+    res = await fetch(`${API_ROOT}/Accounts/${env.twilio.accountSid}/Calls.json`, {
       method: "POST",
       headers: {
         Authorization: authHeader(env),
@@ -104,36 +110,60 @@ export async function createCall(
       },
       body: form.toString(),
       cache: "no-store",
-    },
-  ).catch((error: unknown) => {
-    throw new Error(`Network failure reaching Twilio: ${(error as Error).message}`);
-  });
+      signal: AbortSignal.timeout(TWILIO_TIMEOUT_MS),
+    });
+  } catch (error) {
+    return { ok: false, httpStatus: 0, error: `Network failure reaching Twilio: ${describeNetworkError(error)}` };
+  }
 
   return parse(res);
+}
+
+/** Turn a fetch rejection into something an operator can act on. */
+function describeNetworkError(error: unknown): string {
+  const err = error as Error & { cause?: { code?: string; message?: string } };
+  if (err.name === "TimeoutError" || err.name === "AbortError") {
+    return `no response within ${TWILIO_TIMEOUT_MS / 1000}s — request aborted.`;
+  }
+  // Node collapses most transport failures into "fetch failed"; the real
+  // diagnosis (ECONNRESET, ENOTFOUND, EAI_AGAIN) lives on `cause`.
+  const code = err.cause?.code;
+  if (code) return `${err.message} (${code})${err.cause?.message ? ` — ${err.cause.message}` : ""}`;
+  return err.message;
 }
 
 export async function fetchCall(
   env: Env,
   sid: string,
 ): Promise<TwilioResult<Record<string, unknown>>> {
-  const res = await fetch(`${API_ROOT}/Accounts/${env.twilio.accountSid}/Calls/${sid}.json`, {
-    headers: { Authorization: authHeader(env) },
-    cache: "no-store",
-  });
-  return parse(res);
+  try {
+    const res = await fetch(`${API_ROOT}/Accounts/${env.twilio.accountSid}/Calls/${sid}.json`, {
+      headers: { Authorization: authHeader(env) },
+      cache: "no-store",
+      signal: AbortSignal.timeout(TWILIO_TIMEOUT_MS),
+    });
+    return await parse(res);
+  } catch (error) {
+    return { ok: false, httpStatus: 0, error: `Network failure reaching Twilio: ${describeNetworkError(error)}` };
+  }
 }
 
 export async function endCall(env: Env, sid: string): Promise<TwilioResult<Record<string, unknown>>> {
-  const res = await fetch(`${API_ROOT}/Accounts/${env.twilio.accountSid}/Calls/${sid}.json`, {
-    method: "POST",
-    headers: {
-      Authorization: authHeader(env),
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: new URLSearchParams({ Status: "completed" }).toString(),
-    cache: "no-store",
-  });
-  return parse(res);
+  try {
+    const res = await fetch(`${API_ROOT}/Accounts/${env.twilio.accountSid}/Calls/${sid}.json`, {
+      method: "POST",
+      headers: {
+        Authorization: authHeader(env),
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({ Status: "completed" }).toString(),
+      cache: "no-store",
+      signal: AbortSignal.timeout(TWILIO_TIMEOUT_MS),
+    });
+    return await parse(res);
+  } catch (error) {
+    return { ok: false, httpStatus: 0, error: `Network failure reaching Twilio: ${describeNetworkError(error)}` };
+  }
 }
 
 /* ── TwiML ───────────────────────────────────────────────────────────────── */

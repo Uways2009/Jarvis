@@ -27,6 +27,12 @@ export type SynthesizeResult =
   | { ok: true; bytes: Uint8Array; contentType: string }
   | { ok: false; error: string; httpStatus: number };
 
+/**
+ * Synthesis of a full call script can legitimately take a while, so the ceiling
+ * is generous — but it is still a ceiling. A hung request must not hold the UI.
+ */
+const SYNTHESIS_TIMEOUT_MS = 90_000;
+
 /** Expression tags Fish understands inline in the text. */
 export const EMOTION_TAGS = [
   "[warm]",
@@ -85,13 +91,17 @@ export async function synthesize(
       },
       body: JSON.stringify(payload),
       cache: "no-store",
+      signal: AbortSignal.timeout(SYNTHESIS_TIMEOUT_MS),
     });
   } catch (error) {
-    return {
-      ok: false,
-      httpStatus: 0,
-      error: `Network failure reaching Fish Audio: ${(error as Error).message}`,
-    };
+    const err = error as Error & { cause?: { code?: string } };
+    const reason =
+      err.name === "TimeoutError" || err.name === "AbortError"
+        ? `no response within ${SYNTHESIS_TIMEOUT_MS / 1000}s — request aborted.`
+        : err.cause?.code
+          ? `${err.message} (${err.cause.code})`
+          : err.message;
+    return { ok: false, httpStatus: 0, error: `Network failure reaching Fish Audio: ${reason}` };
   }
 
   if (!res.ok) {

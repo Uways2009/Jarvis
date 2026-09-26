@@ -1,4 +1,4 @@
-import { getEnv } from "@/lib/env";
+import { credentialDiagnostics, getEnv } from "@/lib/env";
 import { getProfile, profileCompleteness } from "@/lib/profile";
 import { listCalls, listClips } from "@/lib/repo";
 import { llmProvider } from "@/lib/llm";
@@ -48,6 +48,7 @@ export async function GET(): Promise<Response> {
   return json({
     ok: true,
     capabilities,
+    credentials: credentialDiagnostics(env),
     profile: {
       label: profile.meta.label,
       seeded: profile.meta.seeded,
