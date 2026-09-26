@@ -1,0 +1,28 @@
+# dependencies
+/node_modules
+
+# next.js
+/.next/
+/out/
+next-env.d.ts
+*.tsbuildinfo
+
+# runtime data: call logs, generated audio, suppression lists hold PII
+/data/audio/
+/data/calls.json
+/data/clips.json
+/data/suppression.json
+/data/scripts.json
+
+# your real business profile stays on your machine; the example ships instead
+/data/profile.json
+
+# env
+.env
+.env.local
+.env.*.local
+
+# misc
+.DS_Store
+npm-debug.log*
+*.pem
