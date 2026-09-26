@@ -17,13 +17,13 @@ export const BLANK_PROFILE: BusinessProfile = {
   meta: {
     version: 0,
     updatedAt: nowIso(),
-    placeholder: true,
-    label: "Not yet populated",
+    placeholder: false,
+    label: "Product Pro Hub",
   },
   company: {
-    name: "",
-    oneLiner: "",
-    category: "",
+    name: "Product Pro Hub",
+    oneLiner: "We build websites for businesses. Website development starts from ₦100,000.",
+    category: "Website development",
     website: "",
     hq: "",
     // Defaulted to the common case rather than UTC, because calling hours are
@@ -39,15 +39,24 @@ export const BLANK_PROFILE: BusinessProfile = {
     email: "",
   },
   positioning: {
-    elevatorPitch: "",
-    valueProps: [],
+    elevatorPitch: "Product Pro Hub offers website development for businesses, with projects starting from ₦100,000.",
+    valueProps: ["Website development for businesses", "Projects start from ₦100,000"],
     differentiators: [],
     proofPoints: [],
   },
-  services: [],
+  services: [
+    {
+      id: "website-development",
+      name: "Website development",
+      summary: "Website development for businesses.",
+      outcomes: ["A website for the business"],
+      qualifiers: ["Needs a website", "Wants to improve an existing website"],
+      priceAnchor: "Starts from ₦100,000",
+    },
+  ],
   pricing: {
-    model: "",
-    anchor: "",
+    model: "Project-based",
+    anchor: "Website development starts from ₦100,000",
     tiers: [],
     commercialNotes: "",
   },

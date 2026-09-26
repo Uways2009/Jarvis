@@ -36,29 +36,17 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   const lead: Lead = {
-    name: body.lead?.name?.trim() ?? "",
+    name: body.lead?.name?.trim() || "there",
     role: body.lead?.role?.trim() ?? "",
     company: body.lead?.company?.trim() ?? "",
     industry: body.lead?.industry?.trim() ?? "",
-    need: body.lead?.need?.trim() ?? "",
+    need: body.lead?.need?.trim() || "whether they need a website for their business",
     trigger: body.lead?.trigger?.trim() || undefined,
     city: body.lead?.city?.trim() || undefined,
     timezone: body.lead?.timezone?.trim() || undefined,
     phone: body.lead?.phone?.trim() || undefined,
     notes: body.lead?.notes?.trim() || undefined,
   };
-
-  if (!lead.name) return json({ ok: false, error: "A prospect name is required." }, 400);
-  if (!lead.need) {
-    return json(
-      {
-        ok: false,
-        error:
-          "A stated need is required. The composer will not produce a generic pitch — describe the prospect's actual pain.",
-      },
-      400,
-    );
-  }
 
   const objective: ObjectiveId =
     body.objective && OBJECTIVES.includes(body.objective) ? body.objective : "book_meeting";
