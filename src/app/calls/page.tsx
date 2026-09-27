@@ -86,8 +86,13 @@ export default function DispatchPage() {
   }, []);
 
   useEffect(() => {
-    void refresh();
+    void refresh().catch((err: Error) => setMessage({ tone: "danger", text: err.message }));
   }, [refresh]);
+
+  // A verdict belongs to the exact inputs checked, not the next number typed.
+  useEffect(() => {
+    setVerdict(null);
+  }, [to, mode, confirmPhrase, record, region, objective, scriptId, clipId, leadName, leadCompany, leadRole, leadNeed, timezone]);
 
   const payload = () => ({
     to,
@@ -98,7 +103,7 @@ export default function DispatchPage() {
     objective,
     scriptId: scriptId || undefined,
     clipId: clipId || undefined,
-    lead: leadName
+    lead: leadName || timezone || leadCompany || leadRole || leadNeed
       ? {
           name: leadName,
           role: leadRole,
@@ -123,6 +128,8 @@ export default function DispatchPage() {
       const data = (await res.json()) as { ok: boolean; verdict?: Verdict; error?: string };
       if (data.verdict) setVerdict(data.verdict);
       else setMessage({ tone: "danger", text: data.error ?? "Pre-flight failed." });
+    } catch (err) {
+      setMessage({ tone: "danger", text: err instanceof Error ? err.message : "Pre-flight failed. Please retry." });
     } finally {
       setBusy(null);
     }
@@ -168,12 +175,18 @@ export default function DispatchPage() {
   }
 
   async function callAction(id: string, action: "sync" | "hangup" | "suppress") {
-    await fetch(`/api/calls/${id}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action }),
-    });
-    await refresh();
+    try {
+      const res = await fetch(`/api/calls/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error ?? "Call action failed.");
+      await refresh();
+    } catch (err) {
+      setMessage({ tone: "danger", text: err instanceof Error ? err.message : "Call action failed." });
+    }
   }
 
   const selectedClip = clips.find((c) => c.id === clipId);
@@ -183,6 +196,7 @@ export default function DispatchPage() {
 
   return (
     <div className="space-y-6">
+      <Link href="/calls/test" className="inline-flex rounded-lg border border-amber/40 px-4 py-2 text-sm text-amber hover:bg-amber-soft">Phone test — rehearsal or real call on your own number →</Link>
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-amber/80">Telephony</div>
@@ -234,9 +248,11 @@ export default function DispatchPage() {
           />
 
           <div className="space-y-3.5">
-            <Field label="Destination number" hint="E.164. Business numbers only, called in business hours.">
+            <Field label="Destination number" hint="Include + and country code (or 00 prefix). Spaces and brackets are accepted. Business numbers only.">
               <input
                 className="field font-mono"
+                type="tel"
+                autoComplete="tel"
                 placeholder="+14155551212"
                 value={to}
                 onChange={(e) => setTo(e.target.value)}
@@ -378,7 +394,7 @@ export default function DispatchPage() {
             <Card>
               <CardHeader
                 eyebrow="Safety gate"
-                title={verdict.allowed ? "Cleared to dial" : "Refused"}
+                title={verdict.allowed ? verdict.mode === "live" ? "Cleared to dial" : "Ready to rehearse — no call" : "Refused"}
                 subtitle={`Destination ${verdict.normalizedTo || "invalid"} · effective mode ${verdict.mode === "live" ? "live" : "rehearsal"}`}
                 actions={
                   <Pill tone={verdict.allowed ? "signal" : "danger"}>

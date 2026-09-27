@@ -1,4 +1,4 @@
-import path from "node:path";
+import { resolveDataDir } from "./storage-config";
 
 /**
  * Environment + capability detection.
@@ -78,7 +78,7 @@ export function getEnv(): Env {
     dailyCap: num("NEXOVIRA_DAILY_CALL_CAP", 25),
     cooldownHours: num("NEXOVIRA_NUMBER_COOLDOWN_HOURS", 24),
     publicBaseUrl: str("PUBLIC_BASE_URL").replace(/\/+$/, ""),
-    dataDir: str("NEXOVIRA_DATA_DIR", path.join(process.cwd(), "data")),
+    dataDir: resolveDataDir(),
   };
 }
 

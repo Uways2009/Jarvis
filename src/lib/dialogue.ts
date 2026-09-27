@@ -397,3 +397,15 @@ export function respond(utterance: string, ctx: TurnContext): TurnDecision {
     note: "Re-anchor simply, then hand the turn back.",
   };
 }
+
+/** Testing mode uses the same intent classifier without sales claims or fake bookings. */
+export function respondToTest(utterance: string, message: string, turn: number): TurnDecision {
+  const intent = classify(utterance);
+  if (intent === "not_interested" || intent === "hostile" || /\b(stop|goodbye|bye|end call)\b/i.test(utterance)) {
+    return { intent: "not_interested", action: "hangup", say: "Understood. This test is ending, and this number will be blocked from further test calls. Goodbye." };
+  }
+  if (!utterance.trim() || turn >= 4) return { intent, action: "hangup", say: "Thank you for testing Nexovira. The phone test is now complete. Goodbye." };
+  if (intent === "transfer" || intent === "callback") return { intent, action: "hangup", say: "This is only a phone test. I cannot transfer or schedule a callback. Thank you for testing. Goodbye." };
+  if (intent === "who_are_you") return { intent, action: "listen", say: "I am Nexovira's automated test assistant, not a human. You can say stop to end this test. Could you hear the message clearly?" };
+  return { intent, action: "listen", say: intent === "question" ? `The message supplied for this test is: ${message} Did that answer your question?` : "Thank you, I received your response. The speech interaction is working. Do you have a question about the test message?" };
+}

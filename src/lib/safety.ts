@@ -1,3 +1,4 @@
+import { isServerlessRuntime, SERVERLESS_STORAGE_WARNING } from "./storage-config";
 import type { BusinessProfile, CallMode, CallRecord, Lead, ObjectiveId } from "./types";
 import { getEnv, type Env } from "./env";
 import { isE164, localHour, normalizePhone } from "./text";
@@ -80,6 +81,12 @@ export async function evaluateDispatch(
     return ok;
   };
 
+  if (isServerlessRuntime()) {
+    liveBlockers.push(SERVERLESS_STORAGE_WARNING);
+    warnings.push("Local rehearsal data may disappear on restart or be unavailable on another serverless instance.");
+    checks.push({ label: "Persistent call storage", ok: false, detail: SERVERLESS_STORAGE_WARNING });
+  }
+
   // 1 — Number hygiene
   if (add("Destination is E.164", isE164(normalizedTo), normalizedTo || "missing")) {
     /* ok */
@@ -102,7 +109,7 @@ export async function evaluateDispatch(
     );
   }
 
-  const liveCalls = calls.filter((c) => c.mode === "live");
+  const liveCalls = calls.filter((c) => c.mode === "live" && (Boolean(c.sid) || c.status === "queued"));
 
   // 3 — Per-number cooldown
   const cooldownMs = env.cooldownHours * 3_600_000;
@@ -151,7 +158,7 @@ export async function evaluateDispatch(
   const hour = localHour(tz);
   const { start, end } = profile.compliance.quietHours;
   const inWindow =
-    hour === null ? true : start <= end ? hour >= start && hour < end : hour >= start || hour < end;
+    hour === null ? false : start <= end ? hour >= start && hour < end : hour >= start || hour < end;
   if (
     add(
       "Within permitted calling hours",
@@ -162,7 +169,9 @@ export async function evaluateDispatch(
     /* ok */
   } else {
     liveBlockers.push(
-      `It is ${String(hour).padStart(2, "0")}:00 for the prospect (${tz}); permitted window is ${start}:00–${end}:00. Call at a civilised hour.`,
+      hour === null
+        ? `The prospect time zone "${tz}" is invalid. Enter an IANA time zone such as Europe/London.`
+        : `It is ${String(hour).padStart(2, "0")}:00 for the prospect (${tz}); permitted window is ${start}:00–${end}:00. Call at a civilised hour.`,
     );
   }
 
